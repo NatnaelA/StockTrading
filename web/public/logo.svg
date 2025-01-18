@@ -1,0 +1,7 @@
+<svg width="200" height="40" viewBox="0 0 200 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 20L20 10L30 20L20 30L10 20Z" fill="#2563EB" />
+  <path d="M40 20L50 10L60 20L50 30L40 20Z" fill="#1D4ED8" />
+  <text x="75" y="27" font-family="Arial" font-size="20" font-weight="bold" fill="#1E40AF">
+    StockTrading
+  </text>
+</svg> 

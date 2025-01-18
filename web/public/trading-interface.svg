@@ -1,0 +1,31 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#F3F4F6"/>
+  
+  <!-- Header -->
+  <rect y="0" width="800" height="60" fill="#FFFFFF"/>
+  <rect x="20" y="20" width="120" height="20" rx="4" fill="#E5E7EB"/>
+  <rect x="660" y="20" width="120" height="20" rx="4" fill="#E5E7EB"/>
+  
+  <!-- Sidebar -->
+  <rect x="0" y="60" width="200" height="540" fill="#FFFFFF"/>
+  <rect x="20" y="80" width="160" height="20" rx="4" fill="#E5E7EB"/>
+  <rect x="20" y="120" width="160" height="20" rx="4" fill="#E5E7EB"/>
+  <rect x="20" y="160" width="160" height="20" rx="4" fill="#E5E7EB"/>
+  
+  <!-- Main Chart Area -->
+  <rect x="220" y="80" width="560" height="300" rx="4" fill="#FFFFFF"/>
+  <path d="M240 330L280 290L320 310L360 270L400 280L440 250L480 270L520 240L560 260L600 230L640 250L680 220L720 240L760 220" stroke="#2563EB" stroke-width="2"/>
+  
+  <!-- Order Book -->
+  <rect x="220" y="400" width="270" height="180" rx="4" fill="#FFFFFF"/>
+  <rect x="240" y="420" width="230" height="20" rx="2" fill="#E5E7EB"/>
+  <rect x="240" y="450" width="230" height="20" rx="2" fill="#E5E7EB"/>
+  <rect x="240" y="480" width="230" height="20" rx="2" fill="#E5E7EB"/>
+  
+  <!-- Trade History -->
+  <rect x="510" y="400" width="270" height="180" rx="4" fill="#FFFFFF"/>
+  <rect x="530" y="420" width="230" height="20" rx="2" fill="#E5E7EB"/>
+  <rect x="530" y="450" width="230" height="20" rx="2" fill="#E5E7EB"/>
+  <rect x="530" y="480" width="230" height="20" rx="2" fill="#E5E7EB"/>
+</svg> 

@@ -1,0 +1,101 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    }
+
+    function isBrokerageAdmin(firmId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/brokerageFirms/$(firmId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/brokerageFirms/$(firmId)).data.admins;
+    }
+
+    function isSeniorBroker(firmId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/brokerageFirms/$(firmId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/brokerageFirms/$(firmId)).data.seniorBrokers;
+    }
+
+    function isJuniorBroker(firmId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/brokerageFirms/$(firmId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/brokerageFirms/$(firmId)).data.juniorBrokers;
+    }
+
+    function isBrokerInFirm(firmId) {
+      return isBrokerageAdmin(firmId) || isSeniorBroker(firmId) || isJuniorBroker(firmId);
+    }
+
+    function isOwner() {
+      return isAuthenticated() && request.auth.uid == resource.id;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner() || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Brokerage firms
+    match /brokerageFirms/{firmId} {
+      allow read: if isAuthenticated();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || isBrokerageAdmin(firmId);
+      allow delete: if isSuperAdmin();
+
+      // Nested collections
+      match /clients/{clientId} {
+        allow read: if isBrokerInFirm(firmId);
+        allow create, update: if isBrokerageAdmin(firmId) || isSeniorBroker(firmId);
+        allow delete: if isBrokerageAdmin(firmId);
+      }
+
+      match /trades/{tradeId} {
+        allow read: if isBrokerInFirm(firmId);
+        allow create: if isBrokerInFirm(firmId);
+        allow update: if isBrokerageAdmin(firmId) || isSeniorBroker(firmId) || 
+          (isJuniorBroker(firmId) && resource.data.status == 'draft');
+        allow delete: if isBrokerageAdmin(firmId);
+      }
+    }
+
+    // Broker invitations
+    match /brokerInvitations/{inviteId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.invitedBy ||
+        request.auth.email == inviteId
+      );
+      allow create: if isSuperAdmin() || 
+        isBrokerageAdmin(request.resource.data.firmId);
+      allow update: if isAuthenticated() && 
+        request.auth.email == inviteId;
+      allow delete: if isSuperAdmin() || 
+        isBrokerageAdmin(resource.data.firmId);
+    }
+
+    // Trade approvals (for junior broker trades)
+    match /tradeApprovals/{approvalId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isBrokerageAdmin(resource.data.firmId) ||
+        isSeniorBroker(resource.data.firmId) ||
+        request.auth.uid == resource.data.requestedBy
+      );
+      allow create: if isJuniorBroker(request.resource.data.firmId);
+      allow update: if isSeniorBroker(resource.data.firmId) ||
+        isBrokerageAdmin(resource.data.firmId);
+      allow delete: if isBrokerageAdmin(resource.data.firmId);
+    }
+  }
+} 

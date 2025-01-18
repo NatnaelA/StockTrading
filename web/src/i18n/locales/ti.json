@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "ይጽዕን ኣሎ...",
+    "error": "ጌጋ ተፈጢሩ",
+    "success": "ዕውት ኮይኑ",
+    "cancel": "ኣቋርጽ",
+    "save": "ኣቐምጥ",
+    "edit": "ኣመዓራርይ",
+    "delete": "ሰርዝ",
+    "confirm": "ኣረጋግጽ",
+    "back": "ተመለስ"
+  },
+  "auth": {
+    "signIn": "እቶ",
+    "signUp": "ተመዝገብ",
+    "signOut": "ውጻእ",
+    "email": "ኢሜይል",
+    "password": "መሕለፊ ቃል",
+    "forgotPassword": "መሕለፊ ቃል ረሲዕካ?",
+    "resetPassword": "መሕለፊ ቃል ሓድስ"
+  },
+  "navigation": {
+    "home": "መበገሲ",
+    "portfolio": "ፖርትፎሊዮ",
+    "trades": "ንግዲ",
+    "deposits": "ኣታዊ",
+    "withdrawals": "ወጻኢ",
+    "settings": "ምትዕርራይ",
+    "audit": "መዝገብ ኦዲት"
+  },
+  "portfolio": {
+    "balance": "ተረፍ ሒሳብ",
+    "totalValue": "ጠቕላላ ዋጋ",
+    "performance": "ኣፈጻጽማ",
+    "holdings": "ዘለካ ኣክስዮን"
+  },
+  "trades": {
+    "buy": "ግዛእ",
+    "sell": "ሸይጥ",
+    "amount": "መጠን",
+    "price": "ዋጋ",
+    "total": "ድምር",
+    "orderType": "ዓይነት ትእዛዝ",
+    "market": "ዕዳጋ",
+    "limit": "ገደብ",
+    "status": "ኩነታት",
+    "pending": "ኣብ ምጽባይ",
+    "completed": "ተዛዚሙ",
+    "cancelled": "ተሰሪዙ"
+  },
+  "settings": {
+    "title": "ምትዕርራይ",
+    "description": "ናይ ሕሳብካን ምርጫታትካን ምትዕርራያት ኣማሓድር",
+    "language": "ቋንቋ",
+    "languageDescription": "ንመተግበሪ እትደልዮ ቋንቋ ምረጽ",
+    "notifications": "መጠንቀቕታታት",
+    "notificationsDescription": "መጠንቀቕታታት ብኸመይ ክትቅበል ከምእትደሊ ኣዋድድ",
+    "security": "ድሕንነት",
+    "securityDescription": "ናይ ሕሳብካ ድሕንነትን ምርግጋጽን ምትዕርራያት ኣማሓድር",
+    "profile": "መግለጺ",
+    "profileDescription": "ውልቃዊ ሓበሬታኻን ምርጫታትካን ኣሐድስ",
+    "preferences": "ምርጫታት",
+    "preferencesDescription": "ናይ ንግዲ ተሞክሮኻ ኣመዓራሪ"
+  },
+  "audit": {
+    "title": "መዝገብ ኦዲት",
+    "description": "ናይ ስርዓት መዝገብ ኦዲት ርአን ኣውጽእን",
+    "filters": "ማጻረይቲ",
+    "export": "CSV ኣውጽእ",
+    "dateRange": "ናይ ግዜ ክልል",
+    "userId": "መለለዪ ተጠቃሚ",
+    "targetId": "መለለዪ ዕላማ",
+    "timestamp": "ግዜ",
+    "action": "ተግባር",
+    "initiatedBy": "ዝጀመረ",
+    "description": "መግለጺ",
+    "target": "ዕላማ",
+    "noLogs": "ዝኾነ መዝገብ ኦዲት ኣይተረኸበን",
+    "actions": {
+      "USER_LOGIN": "ተጠቃሚ ኣትዩ",
+      "USER_LOGOUT": "ተጠቃሚ ወጺኡ",
+      "USER_REGISTER": "ተጠቃሚ ተመዝጊቡ",
+      "USER_UPDATE": "ተጠቃሚ ተመዓራርዩ",
+      "USER_DELETE": "ተጠቃሚ ተሰሪዙ",
+      "TRADE_REQUEST": "ሕቶ ንግዲ",
+      "TRADE_APPROVE": "ምጽዳቕ ንግዲ",
+      "TRADE_REJECT": "ምንጻግ ንግዲ",
+      "DEPOSIT_REQUEST": "ሕቶ ኣታዊ",
+      "DEPOSIT_COMPLETE": "ኣታዊ ተዛዚሙ",
+      "WITHDRAWAL_REQUEST": "ሕቶ ወጻኢ",
+      "WITHDRAWAL_COMPLETE": "ወጻኢ ተዛዚሙ",
+      "KYC_SUBMIT": "KYC ምቕራብ",
+      "KYC_UPDATE": "KYC ምምዕራይ",
+      "ROLE_CHANGE": "ለውጢ ተራ",
+      "BROKER_INVITE": "ዕድመ ብሮከር",
+      "BROKER_REMOVE": "ምእላይ ብሮከር",
+      "FIRM_CREATE": "ምፍጣር ትካል",
+      "FIRM_UPDATE": "ምምዕራይ ትካል"
+    }
+  }
+} 

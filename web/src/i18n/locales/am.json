@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "በመጫን ላይ...",
+    "error": "ስህተት ተከስቷል",
+    "success": "ተሳክቷል",
+    "cancel": "ሰርዝ",
+    "save": "አስቀምጥ",
+    "edit": "አስተካክል",
+    "delete": "ሰርዝ",
+    "confirm": "አረጋግጥ",
+    "back": "ተመለስ"
+  },
+  "auth": {
+    "signIn": "ግባ",
+    "signUp": "ተመዝገብ",
+    "signOut": "ውጣ",
+    "email": "ኢሜይል",
+    "password": "የይለፍ ቃል",
+    "forgotPassword": "የይለፍ ቃል ረሳህ?",
+    "resetPassword": "የይለፍ ቃል አድስ"
+  },
+  "navigation": {
+    "home": "መነሻ",
+    "portfolio": "ፖርትፎሊዮ",
+    "trades": "ንግዶች",
+    "deposits": "ገቢዎች",
+    "withdrawals": "ወጪዎች",
+    "settings": "ቅንብሮች",
+    "audit": "የኦዲት ምዝግብ"
+  },
+  "portfolio": {
+    "balance": "ቀሪ ሂሳብ",
+    "totalValue": "ጠቅላላ ዋጋ",
+    "performance": "አፈጻጸም",
+    "holdings": "ያለህ አክሲዮን"
+  },
+  "trades": {
+    "buy": "ግዛ",
+    "sell": "ሽጥ",
+    "amount": "መጠን",
+    "price": "ዋጋ",
+    "total": "ጠቅላላ",
+    "orderType": "የትዕዛዝ አይነት",
+    "market": "ገበያ",
+    "limit": "ገደብ",
+    "status": "ሁኔታ",
+    "pending": "በመጠባበቅ ላይ",
+    "completed": "ተጠናቅቋል",
+    "cancelled": "ተሰርዟል"
+  },
+  "settings": {
+    "title": "ቅንብሮች",
+    "description": "የመለያዎን ቅንብሮችና ምርጫዎች ያስተዳድሩ",
+    "language": "ቋንቋ",
+    "languageDescription": "ለመተግበሪያው የሚፈልጉትን ቋንቋ ይምረጡ",
+    "notifications": "ማሳወቂያዎች",
+    "notificationsDescription": "ማሳወቂያዎችን እንዴት መቀበል እንደሚፈልጉ ያዋቅሩ",
+    "security": "ደህንነት",
+    "securityDescription": "የመለያዎን ደህንነትና የማረጋገጫ ቅንብሮች ያስተዳድሩ",
+    "profile": "መገለጫ",
+    "profileDescription": "የግል መረጃዎንና ምርጫዎችዎን ያዘምኑ",
+    "preferences": "ምርጫዎች",
+    "preferencesDescription": "የንግድ ልምድዎን ያስተካክሉ"
+  },
+  "audit": {
+    "title": "የኦዲት ምዝግብ",
+    "description": "የስርዓቱን የኦዲት ምዝግብ ይመልከቱ እና ያውጡ",
+    "filters": "ማጣሪያዎች",
+    "export": "CSV አውጣ",
+    "dateRange": "የጊዜ ክልል",
+    "userId": "የተጠቃሚ መታወቂያ",
+    "targetId": "የዒላማ መታወቂያ",
+    "timestamp": "ጊዜ",
+    "action": "ድርጊት",
+    "initiatedBy": "የጀመረው",
+    "description": "መግለጫ",
+    "target": "ዒላማ",
+    "noLogs": "ምንም የኦዲት ምዝግብ አልተገኘም",
+    "actions": {
+      "USER_LOGIN": "ተጠቃሚ ገብቷል",
+      "USER_LOGOUT": "ተጠቃሚ ወጥቷል",
+      "USER_REGISTER": "ተጠቃሚ ተመዝግቧል",
+      "USER_UPDATE": "የተጠቃሚ መረጃ ተስተካክሏል",
+      "USER_DELETE": "ተጠቃሚ ተሰርዟል",
+      "TRADE_REQUEST": "የንግድ ጥያቄ",
+      "TRADE_APPROVE": "የንግድ ማጽደቅ",
+      "TRADE_REJECT": "የንግድ ውድቅ",
+      "DEPOSIT_REQUEST": "የገቢ ጥያቄ",
+      "DEPOSIT_COMPLETE": "ገቢ ተጠናቅቋል",
+      "WITHDRAWAL_REQUEST": "የወጪ ጥያቄ",
+      "WITHDRAWAL_COMPLETE": "ወጪ ተጠናቅቋል",
+      "KYC_SUBMIT": "KYC ማስገባት",
+      "KYC_UPDATE": "KYC ማስተካከል",
+      "ROLE_CHANGE": "የሚና ለውጥ",
+      "BROKER_INVITE": "የብሮከር ግብዣ",
+      "BROKER_REMOVE": "የብሮከር ማስወገድ",
+      "FIRM_CREATE": "ድርጅት መፍጠር",
+      "FIRM_UPDATE": "ድርጅት ማስተካከል"
+    }
+  }
+} 

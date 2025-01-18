@@ -1,0 +1,146 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('super-admin');
+    }
+
+    function isBroker() {
+      return hasRole('broker-junior') || hasRole('broker-senior');
+    }
+
+    function isSupport() {
+      return hasRole('support');
+    }
+
+    function isAuditor() {
+      return hasRole('audit');
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isBrokerageStaff(brokerageId) {
+      return isBroker() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brokerageId == brokerageId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super-admin';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        isAdmin() || 
+        isBroker() || 
+        isSupport() || 
+        isAuditor()
+      );
+      allow write: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'brokerageId']));
+    }
+
+    // Brokerage Firms collection
+    match /brokerageFirms/{firmId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        isBrokerageStaff(firmId) || 
+        isAuditor()
+      );
+      allow write: if isAdmin();
+    }
+
+    // Portfolios collection
+    match /portfolios/{portfolioId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        isAdmin() || 
+        isBrokerageStaff(resource.data.brokerageId) || 
+        isAuditor()
+      );
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (isBroker() && request.resource.data.brokerageId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brokerageId)
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        isBrokerageStaff(resource.data.brokerageId)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Trades collection
+    match /trades/{tradeId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        isAdmin() || 
+        isBrokerageStaff(resource.data.brokerageId) || 
+        isAuditor()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid || 
+        isAdmin() || 
+        (isBroker() && request.resource.data.brokerageId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brokerageId)
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isBroker() && resource.data.brokerageId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brokerageId)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        isAdmin() || 
+        isBrokerageStaff(resource.data.brokerageId) || 
+        isAuditor()
+      );
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (isBroker() && request.resource.data.brokerageId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brokerageId)
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    // Audit Logs collection
+    match /auditLogs/{logId} {
+      allow read: if isAuditor() || isSuperAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // No updates or deletions allowed
+    }
+
+    // Support Tickets collection
+    match /supportTickets/{ticketId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        isAdmin() || 
+        isSupport()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        isSupport() || 
+        (resource.data.userId == request.auth.uid && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description', 'attachments']))
+      );
+      allow delete: if isAdmin();
+    }
+  }
+} 

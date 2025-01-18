@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "Fe'aa jira...",
+    "error": "Dogoggorri uumame",
+    "success": "Milkaa'e",
+    "cancel": "Haqi",
+    "save": "Kuusi",
+    "edit": "Gulaali",
+    "delete": "Haqi",
+    "confirm": "Mirkaneessi",
+    "back": "Duubatti"
+  },
+  "auth": {
+    "signIn": "Seeni",
+    "signUp": "Galmaa'i",
+    "signOut": "Ba'i",
+    "email": "Imeelii",
+    "password": "Jecha Iccitii",
+    "forgotPassword": "Jecha Iccitii Dagatte?",
+    "resetPassword": "Jecha Iccitii Haaromsi"
+  },
+  "navigation": {
+    "home": "Mana",
+    "portfolio": "Portifooliyo",
+    "trades": "Daldaluu",
+    "deposits": "Kuusuu",
+    "withdrawals": "Baasuu",
+    "settings": "Qindaa'ina",
+    "audit": "Galmeewwan Ooditii"
+  },
+  "portfolio": {
+    "balance": "Madaallii",
+    "totalValue": "Gatii Waliigalaa",
+    "performance": "Raawwii",
+    "holdings": "Qabeenya"
+  },
+  "trades": {
+    "buy": "Biti",
+    "sell": "Gurguuri",
+    "amount": "Hamma",
+    "price": "Gatii",
+    "total": "Waliigala",
+    "orderType": "Gosa Ajaja",
+    "market": "Gabaa",
+    "limit": "Daangaa",
+    "status": "Haala",
+    "pending": "Eegaa Jira",
+    "completed": "Xumurame",
+    "cancelled": "Haqame"
+  },
+  "settings": {
+    "title": "Qindaa'ina",
+    "description": "Qindaa'ina herregaa fi filannoo kee to'adhu",
+    "language": "Afaan",
+    "languageDescription": "Afaan barbaaddu aplikeeshinichaaf filadhu",
+    "notifications": "Beeksisa",
+    "notificationsDescription": "Akkaataa beeksisa argachuu barbaaddu qindeessi",
+    "security": "Nageenya",
+    "securityDescription": "Nageenya herregaa fi qindaa'ina mirkanaa'ina to'adhu",
+    "profile": "Profaayilii",
+    "profileDescription": "Odeeffannoo dhuunfaa fi filannoo kee haaromsi",
+    "preferences": "Filannoo",
+    "preferencesDescription": "Muuxannoo daldalaa kee qindeessi"
+  },
+  "audit": {
+    "title": "Galmeewwan Ooditii",
+    "description": "Galmeewwan ooditii siistimaa ilaali fi baasi",
+    "filters": "Calliswwan",
+    "export": "CSV Baasi",
+    "dateRange": "Daangaa Guyyaa",
+    "userId": "ID Fayyadamaa",
+    "targetId": "ID Kaayyoo",
+    "timestamp": "Yeroo",
+    "action": "Gocha",
+    "initiatedBy": "Kan Jalqabe",
+    "description": "Ibsa",
+    "target": "Kaayyoo",
+    "noLogs": "Galmeewwan ooditii hin argamne",
+    "actions": {
+      "USER_LOGIN": "Seensa Fayyadamaa",
+      "USER_LOGOUT": "Ba'umsa Fayyadamaa",
+      "USER_REGISTER": "Galmee Fayyadamaa",
+      "USER_UPDATE": "Haaromsa Fayyadamaa",
+      "USER_DELETE": "Haqiinsa Fayyadamaa",
+      "TRADE_REQUEST": "Gaaffii Daldaluu",
+      "TRADE_APPROVE": "Raggaasisuu Daldaluu",
+      "TRADE_REJECT": "Diduu Daldaluu",
+      "DEPOSIT_REQUEST": "Gaaffii Kuusuu",
+      "DEPOSIT_COMPLETE": "Kuusuu Xumurame",
+      "WITHDRAWAL_REQUEST": "Gaaffii Baasuu",
+      "WITHDRAWAL_COMPLETE": "Baasuu Xumurame",
+      "KYC_SUBMIT": "Dhiyeessa KYC",
+      "KYC_UPDATE": "Haaromsa KYC",
+      "ROLE_CHANGE": "Jijjiirama Gahee",
+      "BROKER_INVITE": "Affeeruu Brookerii",
+      "BROKER_REMOVE": "Haquu Brookerii",
+      "FIRM_CREATE": "Uumama Dhaabbataa",
+      "FIRM_UPDATE": "Haaromsa Dhaabbataa"
+    }
+  }
+} 

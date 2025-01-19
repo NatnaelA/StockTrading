@@ -18,7 +18,7 @@ export default function LandingPage() {
             <Image
               src="/trading-logo.svg"
               alt="Trading Platform Logo"
-              width={150}
+              width={40}
               height={40}
               priority
             />
@@ -33,7 +33,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/register"
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              className="rounded-md bg-teal-500 px-4 py-2 text-sm font-medium text-white hover:bg-teal-600"
             >
               {t("auth.register")}
             </Link>
@@ -42,7 +42,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative mt-16 overflow-hidden bg-gradient-to-b from-indigo-50 pt-16">
+      <section className="relative mt-16 overflow-hidden bg-gradient-to-b from-teal-50 pt-16">
         <div className="container mx-auto px-4 py-16">
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
@@ -55,13 +55,13 @@ export default function LandingPage() {
               <div className="flex space-x-4">
                 <Link
                   href="/register"
-                  className="rounded-md bg-indigo-600 px-6 py-3 text-base font-medium text-white hover:bg-indigo-700"
+                  className="rounded-md bg-teal-500 px-6 py-3 text-base font-medium text-white hover:bg-teal-600"
                 >
                   {t("landing.hero.getStarted")}
                 </Link>
                 <Link
                   href="/about"
-                  className="rounded-md bg-white px-6 py-3 text-base font-medium text-indigo-600 hover:bg-gray-50"
+                  className="rounded-md bg-white px-6 py-3 text-base font-medium text-teal-500 hover:bg-gray-50"
                 >
                   {t("landing.hero.learnMore")}
                 </Link>
@@ -89,7 +89,7 @@ export default function LandingPage() {
           </h2>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg bg-white p-6 shadow-lg">
-              <div className="mb-4 rounded-full bg-indigo-100 p-3 text-indigo-600 inline-block">
+              <div className="mb-4 rounded-full bg-teal-100 p-3 text-teal-500 inline-block">
                 <FaChartLine className="h-6 w-6" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-gray-900">
@@ -100,7 +100,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="rounded-lg bg-white p-6 shadow-lg">
-              <div className="mb-4 rounded-full bg-indigo-100 p-3 text-indigo-600 inline-block">
+              <div className="mb-4 rounded-full bg-teal-100 p-3 text-teal-500 inline-block">
                 <FaShieldAlt className="h-6 w-6" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-gray-900">
@@ -111,7 +111,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="rounded-lg bg-white p-6 shadow-lg">
-              <div className="mb-4 rounded-full bg-indigo-100 p-3 text-indigo-600 inline-block">
+              <div className="mb-4 rounded-full bg-teal-100 p-3 text-teal-500 inline-block">
                 <FaUsers className="h-6 w-6" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-gray-900">
@@ -122,7 +122,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="rounded-lg bg-white p-6 shadow-lg">
-              <div className="mb-4 rounded-full bg-indigo-100 p-3 text-indigo-600 inline-block">
+              <div className="mb-4 rounded-full bg-teal-100 p-3 text-teal-500 inline-block">
                 <FaGlobe className="h-6 w-6" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-gray-900">
@@ -193,17 +193,17 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-indigo-700 py-16">
+      <section className="bg-teal-500 py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="mb-6 text-3xl font-bold text-white">
             {t("landing.cta.title")}
           </h2>
-          <p className="mb-8 text-lg text-indigo-100">
+          <p className="mb-8 text-lg text-teal-100">
             {t("landing.cta.description")}
           </p>
           <Link
             href="/register"
-            className="inline-block rounded-md bg-white px-8 py-3 text-base font-medium text-indigo-700 hover:bg-indigo-50"
+            className="inline-block rounded-md bg-white px-8 py-3 text-base font-medium text-teal-500 hover:bg-teal-50"
           >
             {t("landing.cta.button")}
           </Link>

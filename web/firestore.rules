@@ -39,6 +39,20 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.id;
     }
 
+    function isPortfolioOwner(portfolioId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/portfolios/$(portfolioId)) &&
+        get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.ownerId == request.auth.uid;
+    }
+
+    function canManagePortfolio(portfolioId) {
+      let portfolio = get(/databases/$(database)/documents/portfolios/$(portfolioId));
+      return isAuthenticated() && (
+        portfolio.data.ownerId == request.auth.uid ||
+        isBrokerInFirm(portfolio.data.brokerageId)
+      );
+    }
+
     // User profiles
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -68,6 +82,45 @@ service cloud.firestore {
           (isJuniorBroker(firmId) && resource.data.status == 'draft');
         allow delete: if isBrokerageAdmin(firmId);
       }
+    }
+
+    // Portfolios
+    match /portfolios/{portfolioId} {
+      allow read: if canManagePortfolio(portfolioId);
+      allow create: if isAuthenticated();
+      allow update: if canManagePortfolio(portfolioId);
+      allow delete: if isSuperAdmin() || isPortfolioOwner(portfolioId);
+    }
+
+    // Transactions
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        canManagePortfolio(resource.data.portfolioId)
+      );
+      
+      allow create: if isAuthenticated() && (
+        // Only allow deposits and withdrawals for portfolio owners
+        (
+          (request.resource.data.type == 'deposit' || request.resource.data.type == 'withdrawal') &&
+          isPortfolioOwner(request.resource.data.portfolioId)
+        ) ||
+        // Allow other transaction types for brokers
+        (
+          request.resource.data.type != 'deposit' && 
+          request.resource.data.type != 'withdrawal' &&
+          canManagePortfolio(request.resource.data.portfolioId)
+        )
+      );
+
+      allow update: if isAuthenticated() && (
+        // Portfolio owners can only update their own transactions
+        (resource.data.userId == request.auth.uid) ||
+        // Brokers can update transactions for portfolios they manage
+        canManagePortfolio(resource.data.portfolioId)
+      );
+
+      allow delete: if false; // Transactions should never be deleted
     }
 
     // Broker invitations

@@ -16,6 +16,9 @@ import RecentTrades from "@/components/trading/RecentTrades";
 import TradeForm from "@/components/trading/TradeForm";
 import DocumentsList from "@/components/trading/DocumentsList";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DepositForm from "@/components/DepositForm";
+import WithdrawalForm from "@/components/WithdrawalForm";
+import { FaTimes } from "react-icons/fa";
 
 // Mock data
 const mockPortfolio: Portfolio = {
@@ -114,6 +117,12 @@ export default function TraderDashboard() {
   const router = useRouter();
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>("1W");
   const [user, setUser] = useState<User | null>(null);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     // Check for user in localStorage
@@ -127,7 +136,25 @@ export default function TraderDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    router.push("/login");
+    router.push("/");
+  };
+
+  const handleTransactionSuccess = (type: "deposit" | "withdraw") => {
+    setTransactionStatus({
+      type: "success",
+      message: `${type === "deposit" ? "Deposit" : "Withdrawal"} successful!`,
+    });
+    setShowDepositModal(false);
+    setShowWithdrawModal(false);
+    setTimeout(() => setTransactionStatus(null), 5000);
+  };
+
+  const handleTransactionError = (error: string) => {
+    setTransactionStatus({
+      type: "error",
+      message: error,
+    });
+    setTimeout(() => setTransactionStatus(null), 5000);
   };
 
   if (!user) {
@@ -180,6 +207,48 @@ export default function TraderDashboard() {
 
           {/* Right Column */}
           <div>
+            {/* Account Management Section */}
+            <div className="mb-8 bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                Account Management
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Available Balance
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    ${mockPortfolio.balance.toLocaleString()}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setShowDepositModal(true)}
+                    className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Deposit
+                  </button>
+                  <button
+                    onClick={() => setShowWithdrawModal(true)}
+                    className="w-full py-2 px-4 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    Withdraw
+                  </button>
+                </div>
+                {transactionStatus && (
+                  <div
+                    className={`p-3 rounded-lg ${
+                      transactionStatus.type === "success"
+                        ? "bg-green-50 text-green-700 border border-green-200"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}
+                  >
+                    {transactionStatus.message}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="mb-8">
               <TradeForm
                 onTrade={(order) => {
@@ -193,6 +262,55 @@ export default function TraderDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Deposit Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Deposit Funds
+              </h2>
+              <button
+                onClick={() => setShowDepositModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <DepositForm
+              portfolioId={mockPortfolio.id}
+              onSuccess={() => handleTransactionSuccess("deposit")}
+              onError={handleTransactionError}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Withdraw Funds
+              </h2>
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <WithdrawalForm
+              portfolioId={mockPortfolio.id}
+              availableBalance={mockPortfolio.balance}
+              onSuccess={() => handleTransactionSuccess("withdraw")}
+              onError={handleTransactionError}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

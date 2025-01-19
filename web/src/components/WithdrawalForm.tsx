@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FaSpinner } from "react-icons/fa";
+import { useTransactions } from "@/hooks/useTransactions";
 
 interface WithdrawalFormProps {
   portfolioId: string;
@@ -17,13 +18,12 @@ export default function WithdrawalForm({
   onError,
 }: WithdrawalFormProps) {
   const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { loading, createWithdrawal } = useTransactions();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     try {
       // Validate amount
@@ -37,24 +37,10 @@ export default function WithdrawalForm({
       }
 
       // Create withdrawal request
-      const response = await fetch("/api/payments/withdraw", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: withdrawalAmount,
-          portfolioId,
-          currency: "usd", // You can make this configurable
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process withdrawal");
+      const result = await createWithdrawal(portfolioId, withdrawalAmount);
+      if (!result.success) {
+        throw new Error(result.error || "Failed to process withdrawal");
       }
-
-      const data = await response.json();
 
       // Reset form and notify success
       setAmount("");
@@ -63,8 +49,6 @@ export default function WithdrawalForm({
       const errorMessage = error.message || "Failed to process withdrawal";
       setError(errorMessage);
       onError?.(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 

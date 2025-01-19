@@ -17,7 +17,7 @@ export default function LanguageSwitcher() {
 
   return (
     <Menu as="div" className="relative inline-block text-left">
-      <Menu.Button className="flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+      <Menu.Button className="flex items-center rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
         <FaGlobe className="mr-2 h-4 w-4" />
         {languages.find((lang) => lang.code === i18n.language)?.name ||
           "English"}
@@ -43,7 +43,7 @@ export default function LanguageSwitcher() {
                       active ? "bg-gray-100" : ""
                     } block w-full px-4 py-2 text-left text-sm ${
                       i18n.language === language.code
-                        ? "font-medium text-indigo-600"
+                        ? "font-medium text-teal-500"
                         : "text-gray-700"
                     }`}
                   >

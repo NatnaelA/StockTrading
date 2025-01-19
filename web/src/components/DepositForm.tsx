@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FaSpinner } from "react-icons/fa";
 import { loadStripe } from "@stripe/stripe-js";
+import { useTransactions } from "@/hooks/useTransactions";
 
 interface DepositFormProps {
   portfolioId: string;
@@ -16,13 +17,12 @@ export default function DepositForm({
   onError,
 }: DepositFormProps) {
   const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { loading, createDeposit } = useTransactions();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     try {
       // Validate amount
@@ -31,25 +31,11 @@ export default function DepositForm({
         throw new Error("Please enter a valid amount");
       }
 
-      // Create payment intent
-      const response = await fetch("/api/payments/deposit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: depositAmount,
-          portfolioId,
-          currency: "usd", // You can make this configurable
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process deposit");
+      // Create deposit transaction
+      const result = await createDeposit(portfolioId, depositAmount);
+      if (!result.success || !result.sessionId) {
+        throw new Error(result.error || "Failed to process deposit");
       }
-
-      const data = await response.json();
 
       // Load Stripe
       const stripe = await loadStripe(
@@ -59,7 +45,7 @@ export default function DepositForm({
 
       // Redirect to Stripe Checkout
       const { error: stripeError } = await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
+        sessionId: result.sessionId,
       });
 
       if (stripeError) {
@@ -72,8 +58,6 @@ export default function DepositForm({
       const errorMessage = error.message || "Failed to process deposit";
       setError(errorMessage);
       onError?.(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 

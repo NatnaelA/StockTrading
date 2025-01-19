@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { FaUser, FaIdCard, FaPhone, FaCheck } from "react-icons/fa";
+import Link from "next/link";
+import { useTranslation } from "react-i18next";
 
 type RegistrationStep = "account" | "personal" | "kyc" | "verification";
 
@@ -59,6 +61,7 @@ export default function Register() {
     idBackImage: null,
     selfieImage: null,
   });
+  const { t } = useTranslation();
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -170,13 +173,13 @@ export default function Register() {
               <div
                 key={id}
                 className={`flex flex-col items-center ${
-                  currentStep === id ? "text-blue-600" : "text-gray-400"
+                  currentStep === id ? "text-teal-600" : "text-gray-400"
                 }`}
               >
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
                     currentStep === id
-                      ? "bg-blue-600 text-white"
+                      ? "bg-teal-600 text-white"
                       : "bg-gray-200"
                   }`}
                 >
@@ -189,7 +192,7 @@ export default function Register() {
           <div className="relative mt-4">
             <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 -translate-y-1/2" />
             <div
-              className="absolute top-1/2 left-0 h-0.5 bg-blue-600 -translate-y-1/2 transition-all duration-300"
+              className="absolute top-1/2 left-0 h-0.5 bg-teal-600 -translate-y-1/2 transition-all duration-300"
               style={{
                 width: `${
                   (currentStep === "account"
@@ -221,7 +224,7 @@ export default function Register() {
                     name="accountType"
                     value={formData.accountType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                   >
                     <option value="individual">Individual Trader</option>
                     <option value="broker">Licensed Broker</option>
@@ -236,7 +239,7 @@ export default function Register() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -249,7 +252,7 @@ export default function Register() {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -262,7 +265,7 @@ export default function Register() {
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -285,7 +288,7 @@ export default function Register() {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -298,7 +301,7 @@ export default function Register() {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -311,7 +314,7 @@ export default function Register() {
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -324,7 +327,7 @@ export default function Register() {
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -337,7 +340,7 @@ export default function Register() {
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -350,7 +353,7 @@ export default function Register() {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -363,7 +366,7 @@ export default function Register() {
                     name="postalCode"
                     value={formData.postalCode}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -376,7 +379,7 @@ export default function Register() {
                     name="country"
                     value={formData.country}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -398,7 +401,7 @@ export default function Register() {
                     name="idType"
                     value={formData.idType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                   >
                     <option value="passport">Passport</option>
                     <option value="drivers_license">Driver's License</option>
@@ -414,7 +417,7 @@ export default function Register() {
                     name="idNumber"
                     value={formData.idNumber}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -427,7 +430,7 @@ export default function Register() {
                     name="idFrontImage"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -440,7 +443,7 @@ export default function Register() {
                     name="idBackImage"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -452,7 +455,7 @@ export default function Register() {
                     name="selfieImage"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -463,8 +466,8 @@ export default function Register() {
           {currentStep === "verification" && (
             <div className="bg-white rounded-lg shadow p-6 text-center">
               <div className="mb-6">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaCheck className="w-8 h-8 text-blue-600" />
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaCheck className="w-8 h-8 text-teal-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">
                   Verification In Progress
@@ -498,10 +501,18 @@ export default function Register() {
             )}
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 ml-auto"
+              className="w-full rounded-md bg-teal-500 px-4 py-2 text-sm font-medium text-white hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
             >
-              {currentStep === "verification" ? "Complete" : "Continue"}
+              {t("auth.register")}
             </button>
+          </div>
+          <div className="text-center">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-teal-500 hover:text-teal-600"
+            >
+              {t("auth.haveAccount")}
+            </Link>
           </div>
         </form>
       </div>

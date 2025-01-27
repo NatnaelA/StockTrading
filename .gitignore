@@ -29,6 +29,7 @@ web-build/
 .env.test.local
 .env.production.local
 .env*.local
+web/.env.local
 
 # Debug
 npm-debug.log*

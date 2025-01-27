@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import {
   TimeRange,
   Portfolio,
@@ -106,17 +109,18 @@ const mockDocuments: TradeDocument[] = [
   },
 ];
 
-interface User {
-  id: string;
+interface UserProfile {
+  firstName: string;
+  lastName: string;
   email: string;
-  name: string;
 }
 
-export default function TraderDashboard() {
+export default function DashboardPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>("1W");
-  const [user, setUser] = useState<User | null>(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<{
@@ -125,19 +129,30 @@ export default function TraderDashboard() {
   } | null>(null);
 
   useEffect(() => {
-    // Check for user in localStorage
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      router.push("/login");
-    } else {
-      setUser(JSON.parse(storedUser));
-    }
-  }, [router]);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    router.push("/");
-  };
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          setUserProfile({
+            firstName: userDoc.data().firstName || "",
+            lastName: userDoc.data().lastName || "",
+            email: user.email || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const handleTransactionSuccess = (type: "deposit" | "withdraw") => {
     setTransactionStatus({
@@ -157,8 +172,20 @@ export default function TraderDashboard() {
     setTimeout(() => setTransactionStatus(null), 5000);
   };
 
-  if (!user) {
-    return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Error loading profile</div>
+      </div>
+    );
   }
 
   return (
@@ -170,9 +197,15 @@ export default function TraderDashboard() {
             {t("portfolio.summary")}
           </h1>
           <div className="flex items-center space-x-4">
-            <span className="text-gray-600">{user.email}</span>
+            <span className="text-gray-600">
+              {userProfile.firstName} {userProfile.lastName}
+            </span>
             <button
-              onClick={handleLogout}
+              onClick={() => {
+                auth.signOut().then(() => {
+                  router.push("/");
+                });
+              }}
               className="text-sm text-red-600 hover:text-red-800"
             >
               {t("auth.signOut")}

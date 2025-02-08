@@ -1,12 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 
+const createInitialPortfolio = async (userId: string) => {
+  await setDoc(doc(db, "portfolios", userId), {
+    id: userId,
+    userId,
+    name: "My Portfolio",
+    balance: 0,
+    currency: "USD",
+    holdings: {},
+    totalValue: 0,
+    dayChange: 0,
+    dayChangePercentage: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+};
+
 export default function LoginPage() {
+  const router = useRouter();
   const { checkProfileAndRedirect } = useAuthRedirect();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +38,27 @@ export default function LoginPage() {
 
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, "users", result.user.uid));
+
+      if (!userDoc.exists()) {
+        // Create user document if it doesn't exist
+        await setDoc(doc(db, "users", result.user.uid), {
+          email: result.user.email,
+          createdAt: new Date().toISOString(),
+          profileCompleted: false,
+        });
+        // Create initial portfolio
+        await createInitialPortfolio(result.user.uid);
+      } else {
+        // Check if portfolio exists, if not create it
+        const portfolioDoc = await getDoc(
+          doc(db, "portfolios", result.user.uid)
+        );
+        if (!portfolioDoc.exists()) {
+          await createInitialPortfolio(result.user.uid);
+        }
+      }
+
       await checkProfileAndRedirect(result.user);
     } catch (err) {
       console.error("Login error:", err);
@@ -35,10 +74,10 @@ export default function LoginPage() {
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
-
-      // Check if user document exists, if not create it
       const userDoc = await getDoc(doc(db, "users", result.user.uid));
+
       if (!userDoc.exists()) {
+        // Create user document if it doesn't exist
         await setDoc(doc(db, "users", result.user.uid), {
           email: result.user.email,
           displayName: result.user.displayName,
@@ -46,6 +85,16 @@ export default function LoginPage() {
           createdAt: new Date().toISOString(),
           profileCompleted: false,
         });
+        // Create initial portfolio
+        await createInitialPortfolio(result.user.uid);
+      } else {
+        // Check if portfolio exists, if not create it
+        const portfolioDoc = await getDoc(
+          doc(db, "portfolios", result.user.uid)
+        );
+        if (!portfolioDoc.exists()) {
+          await createInitialPortfolio(result.user.uid);
+        }
       }
 
       await checkProfileAndRedirect(result.user);

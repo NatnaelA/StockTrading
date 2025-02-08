@@ -13,13 +13,36 @@ interface HoldingsListProps {
   holdings: Holding[];
 }
 
-export default function HoldingsList({ holdings }: HoldingsListProps) {
+export default function HoldingsList({ holdings = [] }: HoldingsListProps) {
   const { t } = useTranslation();
 
+  if (!Array.isArray(holdings)) {
+    console.warn("Holdings is not an array:", holdings);
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          {t("portfolio.holdings")}
+        </h2>
+        <p className="text-gray-500 text-center py-4">No holdings available</p>
+      </div>
+    );
+  }
+
+  if (holdings.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          {t("portfolio.holdings")}
+        </h2>
+        <p className="text-gray-500 text-center py-4">No holdings available</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900">
           {t("portfolio.holdings")}
         </h2>
       </div>
@@ -31,31 +54,31 @@ export default function HoldingsList({ holdings }: HoldingsListProps) {
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                {t("portfolio.symbol")}
+                Symbol
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                {t("portfolio.quantity")}
+                Shares
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                {t("portfolio.currentPrice")}
+                Price
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                {t("portfolio.marketValue")}
+                Market Value
               </th>
               <th
                 scope="col"
-                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                {t("portfolio.dayChange")}
+                Day Change
               </th>
             </tr>
           </thead>
@@ -66,45 +89,55 @@ export default function HoldingsList({ holdings }: HoldingsListProps) {
                 holding.quantity *
                 (holding.currentPrice - holding.previousClose);
               const dayChangePercent =
-                ((holding.currentPrice - holding.previousClose) /
-                  holding.previousClose) *
-                100;
+                holding.previousClose > 0
+                  ? ((holding.currentPrice - holding.previousClose) /
+                      holding.previousClose) *
+                    100
+                  : 0;
 
               return (
                 <tr key={holding.symbol}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {holding.symbol}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
-                    {holding.quantity.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    }).format(holding.currentPrice)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    }).format(marketValue)}
-                  </td>
-                  <td
-                    className={`px-6 py-4 whitespace-nowrap text-sm text-right ${
-                      dayChange >= 0 ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    <div>
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                        signDisplay: "always",
-                      }).format(dayChange)}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">
+                      {holding.symbol}
                     </div>
-                    <div className="text-xs">
-                      {dayChangePercent >= 0 ? "+" : ""}
-                      {dayChangePercent.toFixed(2)}%
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-gray-900">
+                      {holding.quantity.toLocaleString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-gray-900">
+                      ${holding.currentPrice.toFixed(2)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-gray-900">
+                      $
+                      {marketValue.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div
+                      className={`${
+                        dayChange >= 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      <span>
+                        {dayChange >= 0 ? "+" : ""}$
+                        {Math.abs(dayChange).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                      <span className="text-sm ml-1">
+                        ({dayChange >= 0 ? "+" : ""}
+                        {dayChangePercent.toFixed(2)}%)
+                      </span>
                     </div>
                   </td>
                 </tr>

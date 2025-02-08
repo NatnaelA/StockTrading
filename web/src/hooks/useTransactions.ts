@@ -1,126 +1,105 @@
+"use client";
+
 import { useState, useEffect } from 'react';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  getDocs,
+  Timestamp,
+  QueryDocumentSnapshot,
+  DocumentData
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { StockTransaction } from '@/types/trading';
 
-interface TransactionResult {
-  success: boolean;
-  error?: string;
-  transactionId?: string;
-  sessionId?: string;
-}
+const processTimestamp = (timestamp: any): Timestamp => {
+  if (timestamp instanceof Timestamp) {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string') {
+    return Timestamp.fromDate(new Date(timestamp));
+  }
+  if (typeof timestamp === 'number') {
+    return Timestamp.fromMillis(timestamp);
+  }
+  return Timestamp.now();
+};
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+const processTransaction = (doc: QueryDocumentSnapshot<DocumentData>): StockTransaction => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    userId: data.userId,
+    ticker: data.ticker,
+    quantity: Number(data.quantity),
+    price: Number(data.price),
+    type: data.type,
+    status: data.status || 'completed',
+    createdAt: processTimestamp(data.createdAt),
+    updatedAt: processTimestamp(data.updatedAt || data.createdAt),
+  };
+};
 
-export function useTransactions() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+export function useTransactions(userId: string) {
+  const [transactions, setTransactions] = useState<StockTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get user from localStorage
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  const createDeposit = async (
-    portfolioId: string,
-    amount: number,
-    currency: string = 'usd'
-  ): Promise<TransactionResult> => {
-    // Check user in localStorage instead of Firebase
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      return { success: false, error: 'User not authenticated' };
+    if (!userId) {
+      setLoading(false);
+      return;
     }
 
-    setLoading(true);
     try {
-      const response = await fetch('/api/payments/deposit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          portfolioId,
-          amount,
-          currency,
-          userId: JSON.parse(storedUser).id, // Include user ID from localStorage
-        }),
-      });
+      const baseQuery = query(
+        collection(db, 'transactions'),
+        where('userId', '==', userId),
+        limit(10)
+      );
 
-      const data = await response.json();
+      const unsubscribe = onSnapshot(
+        baseQuery,
+        {
+          next: (snapshot) => {
+            try {
+              const newTransactions = snapshot.docs
+                .map(processTransaction)
+                .sort((a, b) => {
+                  // We know these are Timestamps because processTransaction ensures it
+                  const timeA = (a.createdAt as Timestamp).toMillis();
+                  const timeB = (b.createdAt as Timestamp).toMillis();
+                  return timeB - timeA;
+                });
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create deposit');
-      }
+              setTransactions(newTransactions);
+              setError(null);
+            } catch (err) {
+              console.error('Error processing transactions:', err);
+              setError('Failed to process transactions data. Please try again.');
+            } finally {
+              setLoading(false);
+            }
+          },
+          error: (err) => {
+            console.error('Snapshot listener error:', err);
+            setError('Failed to load transactions. Please check your connection and try again.');
+            setLoading(false);
+          }
+        }
+      );
 
-      return {
-        success: true,
-        transactionId: data.transactionId,
-        sessionId: data.sessionId,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to create deposit',
-      };
-    } finally {
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error setting up transaction listener:', err);
+      setError('Failed to set up transactions listener. Please refresh the page.');
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  const createWithdrawal = async (
-    portfolioId: string,
-    amount: number,
-    currency: string = 'usd'
-  ): Promise<TransactionResult> => {
-    // Check user in localStorage instead of Firebase
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      return { success: false, error: 'User not authenticated' };
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/payments/withdraw', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          portfolioId,
-          amount,
-          currency,
-          userId: JSON.parse(storedUser).id, // Include user ID from localStorage
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create withdrawal');
-      }
-
-      return {
-        success: true,
-        transactionId: data.transactionId,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to create withdrawal',
-      };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return {
-    loading,
-    createDeposit,
-    createWithdrawal,
-  };
+  return { transactions, loading, error };
 } 

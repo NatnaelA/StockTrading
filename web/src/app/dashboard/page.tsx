@@ -3,15 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
-import {
-  TimeRange,
-  Portfolio,
-  TradeOrder,
-  TradeDocument,
-} from "@/types/trading";
+import { useAuth } from "@/hooks/useAuth";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import { TimeRange } from "@/types/trading";
+import { auth } from "@/lib/firebase";
 import PortfolioSummary from "@/components/trading/PortfolioSummary";
 import PerformanceChart from "@/components/trading/PerformanceChart";
 import HoldingsList from "@/components/trading/HoldingsList";
@@ -23,104 +19,11 @@ import DepositForm from "@/components/DepositForm";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import { FaTimes } from "react-icons/fa";
 
-// Mock data
-const mockPortfolio: Portfolio = {
-  id: "mock-portfolio",
-  userId: "mock-user-id",
-  name: "My Portfolio",
-  balance: 100000,
-  currency: "USD",
-  holdings: [
-    {
-      symbol: "AAPL",
-      quantity: 100,
-      currentPrice: 180.5,
-      previousClose: 178.2,
-    },
-    {
-      symbol: "GOOGL",
-      quantity: 50,
-      currentPrice: 2750.8,
-      previousClose: 2740.5,
-    },
-    { symbol: "MSFT", quantity: 75, currentPrice: 310.2, previousClose: 308.8 },
-  ],
-  totalValue: 250000,
-  dayChange: 5000,
-  dayChangePercentage: 2.04,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
-
-const mockPerformanceData = [
-  { timestamp: Date.now() - 86400000 * 7, value: 100000 },
-  { timestamp: Date.now() - 86400000 * 6, value: 102000 },
-  { timestamp: Date.now() - 86400000 * 5, value: 101500 },
-  { timestamp: Date.now() - 86400000 * 4, value: 103000 },
-  { timestamp: Date.now() - 86400000 * 3, value: 105000 },
-  { timestamp: Date.now() - 86400000 * 2, value: 104500 },
-  { timestamp: Date.now() - 86400000, value: 106000 },
-  { timestamp: Date.now(), value: 107000 },
-];
-
-const mockTrades: TradeOrder[] = [
-  {
-    id: "1",
-    symbol: "AAPL",
-    side: "buy",
-    orderType: "market",
-    quantity: 10,
-    price: 180.5,
-    status: "completed",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    symbol: "GOOGL",
-    side: "sell",
-    orderType: "limit",
-    quantity: 5,
-    price: 2750.8,
-    status: "pending",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
-
-const mockDocuments: TradeDocument[] = [
-  {
-    id: "1",
-    type: "statement",
-    date: new Date().toISOString(),
-    description: "Monthly Account Statement - January 2024",
-    url: "#",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    type: "tax",
-    date: new Date(Date.now() - 86400000 * 30).toISOString(),
-    description: "Tax Document - 2023",
-    url: "#",
-    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-  },
-];
-
-interface UserProfile {
-  firstName: string;
-  lastName: string;
-  email: string;
-}
-
 export default function DashboardPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>("1W");
+  const { user } = useAuth();
+  const { loading: authLoading } = useProtectedRoute();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<{
@@ -128,31 +31,26 @@ export default function DashboardPage() {
     message: string;
   } | null>(null);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+  const {
+    portfolio,
+    recentTrades,
+    performanceData,
+    loading: portfolioLoading,
+    error,
+    selectedTimeRange,
+    updateTimeRange,
+  } = usePortfolio(user?.id || "");
 
-      try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          setUserProfile({
-            firstName: userDoc.data().firstName || "",
-            lastName: userDoc.data().lastName || "",
-            email: user.email || "",
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    });
+  const loading = authLoading || portfolioLoading;
 
-    return () => unsubscribe();
-  }, [router]);
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   const handleTransactionSuccess = (type: "deposit" | "withdraw") => {
     setTransactionStatus({
@@ -172,21 +70,64 @@ export default function DashboardPage() {
     setTimeout(() => setTransactionStatus(null), 5000);
   };
 
+  // Show loading state while authentication or portfolio data is being fetched
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Loading...</div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow">
+          <div className="container mx-auto px-4 py-4">
+            <div className="h-8 w-48 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        </div>
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <div className="mb-8 bg-white rounded-lg shadow-sm p-6">
+                <div className="space-y-4">
+                  <div className="h-8 w-1/3 bg-gray-200 animate-pulse rounded"></div>
+                  <div className="h-24 bg-gray-200 animate-pulse rounded"></div>
+                </div>
+              </div>
+              <div className="mb-8 bg-white rounded-lg shadow-sm p-6">
+                <div className="space-y-4">
+                  <div className="h-8 w-1/4 bg-gray-200 animate-pulse rounded"></div>
+                  <div className="h-48 bg-gray-200 animate-pulse rounded"></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="space-y-4">
+                  <div className="h-8 w-1/2 bg-gray-200 animate-pulse rounded"></div>
+                  <div className="h-32 bg-gray-200 animate-pulse rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!userProfile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Error loading profile</div>
-      </div>
-    );
+  if (error) {
+    console.error("Portfolio error:", error);
+    // Don't show error to user, just log it and continue with empty portfolio
   }
+
+  // Initialize empty portfolio if none exists
+  const portfolioData = portfolio || {
+    id: user?.id || "",
+    userId: user?.id || "",
+    name: "My Portfolio",
+    balance: 0,
+    currency: "USD",
+    holdings: [],
+    totalValue: 0,
+    dayChange: 0,
+    dayChangePercentage: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -198,14 +139,10 @@ export default function DashboardPage() {
           </h1>
           <div className="flex items-center space-x-4">
             <span className="text-gray-600">
-              {userProfile.firstName} {userProfile.lastName}
+              {user?.firstName} {user?.lastName}
             </span>
             <button
-              onClick={() => {
-                auth.signOut().then(() => {
-                  router.push("/");
-                });
-              }}
+              onClick={handleSignOut}
               className="text-sm text-red-600 hover:text-red-800"
             >
               {t("auth.signOut")}
@@ -221,20 +158,20 @@ export default function DashboardPage() {
           {/* Left Column */}
           <div className="lg:col-span-2">
             <div className="mb-8">
-              <PortfolioSummary portfolio={mockPortfolio} />
+              <PortfolioSummary portfolio={portfolioData} />
             </div>
             <div className="mb-8">
               <PerformanceChart
-                data={mockPerformanceData}
+                data={performanceData}
                 selectedRange={selectedTimeRange}
-                onRangeChange={setSelectedTimeRange}
+                onRangeChange={updateTimeRange}
               />
             </div>
             <div className="mb-8">
-              <HoldingsList holdings={mockPortfolio.holdings} />
+              <HoldingsList holdings={portfolioData.holdings} />
             </div>
             <div>
-              <RecentTrades trades={mockTrades} />
+              <RecentTrades />
             </div>
           </div>
 
@@ -251,7 +188,7 @@ export default function DashboardPage() {
                     Available Balance
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    ${mockPortfolio.balance.toLocaleString()}
+                    ${portfolioData.balance.toLocaleString()}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -284,13 +221,19 @@ export default function DashboardPage() {
 
             <div className="mb-8">
               <TradeForm
-                onTrade={(order) => {
-                  console.log("Mock trade submitted:", order);
+                onSuccess={() => {
+                  // Portfolio will automatically update through the usePortfolio hook
+                }}
+                onError={(error) => {
+                  setTransactionStatus({
+                    type: "error",
+                    message: error,
+                  });
                 }}
               />
             </div>
             <div>
-              <DocumentsList documents={mockDocuments} />
+              <DocumentsList userId={user?.id || ""} />
             </div>
           </div>
         </div>
@@ -312,7 +255,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <DepositForm
-              portfolioId={mockPortfolio.id}
+              portfolioId={portfolioData.id}
               onSuccess={() => handleTransactionSuccess("deposit")}
               onError={handleTransactionError}
             />
@@ -336,8 +279,8 @@ export default function DashboardPage() {
               </button>
             </div>
             <WithdrawalForm
-              portfolioId={mockPortfolio.id}
-              availableBalance={mockPortfolio.balance}
+              portfolioId={portfolioData.id}
+              availableBalance={portfolioData.balance}
               onSuccess={() => handleTransactionSuccess("withdraw")}
               onError={handleTransactionError}
             />

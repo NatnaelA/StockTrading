@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export type TimeRange = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 export type DocumentType = "statement" | "tax" | "trade";
 export type OrderType = "market" | "limit" | "stop";
@@ -47,4 +49,50 @@ export interface TradeDocument {
 export interface PerformanceData {
   timestamp: number;
   value: number;
+}
+
+export interface StockTransaction {
+  id: string;
+  userId: string;
+  ticker: string;
+  quantity: number;
+  price: number;
+  type: 'buy' | 'sell';
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: Timestamp | string;
+  updatedAt: Timestamp | string;
+}
+
+export interface UserPortfolio {
+  id: string;
+  userId: string;
+  name: string;
+  balance: number;
+  currency: string;
+  holdings: {
+    [ticker: string]: {
+      quantity: number;
+      averagePrice: number;
+      lastUpdated: Timestamp;
+    };
+  };
+  totalValue: number;
+  dayChange: number;
+  dayChangePercentage: number;
+  createdAt: Timestamp | string;
+  updatedAt: Timestamp | string;
+}
+
+export interface UserDocument {
+  id: string;
+  userId: string;
+  type: 'tax_statement' | 'transaction_confirmation' | 'account_statement';
+  title: string;
+  description?: string;
+  fileUrl: string;
+  fileType: string;
+  periodStart?: string;
+  periodEnd?: string;
+  createdAt: Timestamp | string;
+  updatedAt: Timestamp | string;
 }

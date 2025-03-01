@@ -34,7 +34,7 @@ const processTransaction = (doc: QueryDocumentSnapshot<DocumentData>): StockTran
   return {
     id: doc.id,
     userId: data.userId,
-    ticker: data.ticker,
+    ticker: data.ticker || data.symbol, // Handle both ticker and symbol fields
     quantity: Number(data.quantity),
     price: Number(data.price),
     type: data.type,
@@ -51,54 +51,83 @@ export function useTransactions(userId: string) {
 
   useEffect(() => {
     if (!userId) {
+      console.log('No userId provided to useTransactions hook');
       setLoading(false);
       return;
     }
 
+    console.log(`Fetching transactions for user: ${userId}`);
+    let unsubscribe: () => void;
+
     try {
-      const baseQuery = query(
+      // Create a query that matches our security rules
+      const transactionsQuery = query(
         collection(db, 'transactions'),
         where('userId', '==', userId),
-        limit(10)
+        orderBy('createdAt', 'desc'),
+        limit(50) // Keep under the 100 limit in our security rules
       );
 
-      const unsubscribe = onSnapshot(
-        baseQuery,
-        {
-          next: (snapshot) => {
-            try {
-              const newTransactions = snapshot.docs
-                .map(processTransaction)
-                .sort((a, b) => {
-                  // We know these are Timestamps because processTransaction ensures it
-                  const timeA = (a.createdAt as Timestamp).toMillis();
-                  const timeB = (b.createdAt as Timestamp).toMillis();
-                  return timeB - timeA;
-                });
+      console.log('Transaction query created:', transactionsQuery);
 
-              setTransactions(newTransactions);
-              setError(null);
-            } catch (err) {
-              console.error('Error processing transactions:', err);
-              setError('Failed to process transactions data. Please try again.');
-            } finally {
+      unsubscribe = onSnapshot(
+        transactionsQuery,
+        (snapshot) => {
+          try {
+            console.log(`Retrieved ${snapshot.docs.length} transactions`);
+            
+            if (snapshot.empty) {
+              console.log('No transactions found for this user');
+              setTransactions([]);
               setLoading(false);
+              return;
             }
-          },
-          error: (err) => {
-            console.error('Snapshot listener error:', err);
-            setError('Failed to load transactions. Please check your connection and try again.');
+
+            const newTransactions = snapshot.docs
+              .map(doc => {
+                try {
+                  return processTransaction(doc);
+                } catch (err) {
+                  console.error(`Error processing transaction ${doc.id}:`, err);
+                  return null;
+                }
+              })
+              .filter((transaction): transaction is StockTransaction => transaction !== null)
+              .sort((a, b) => {
+                // We know these are Timestamps because processTransaction ensures it
+                const timeA = (a.createdAt as Timestamp).toMillis();
+                const timeB = (b.createdAt as Timestamp).toMillis();
+                return timeB - timeA;
+              });
+
+            console.log(`Processed ${newTransactions.length} transactions successfully`);
+            setTransactions(newTransactions);
+            setError(null);
+            setLoading(false);
+          } catch (err) {
+            console.error('Error processing transactions:', err);
+            setError('Failed to process transactions data');
             setLoading(false);
           }
+        },
+        (err) => {
+          console.error('Firestore snapshot listener error:', err);
+          setError('Failed to load transactions');
+          setLoading(false);
         }
       );
-
-      return () => unsubscribe();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error setting up transaction listener:', err);
-      setError('Failed to set up transactions listener. Please refresh the page.');
+      setError('Failed to set up transactions listener');
       setLoading(false);
     }
+
+    return () => {
+      if (unsubscribe) {
+        console.log('Unsubscribing from transactions listener');
+        unsubscribe();
+      }
+    };
   }, [userId]);
 
   return { transactions, loading, error };

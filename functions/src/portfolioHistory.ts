@@ -1,30 +1,10 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-// Get the service account configuration
-const serviceAccount = functions.config().service?.account;
-console.log('Service account configuration:', serviceAccount || 'Using default application credentials');
-
-// Check if app is already initialized to prevent duplicate initialization
-if (admin.apps.length === 0) {
-  // Initialize the app with the configured service account
-  // For Firebase Functions, we should use applicationDefault() which will use the function's identity
-  try {
-    console.log('Initializing Firebase Admin with application default credentials');
-    admin.initializeApp();
-    console.log('Firebase Admin initialized successfully with project ID:', admin.app().options.projectId);
-  } catch (error) {
-    console.error('Error initializing Firebase Admin:', error);
-    throw error;
-  }
-}
-
 /**
  * Scheduled function that runs daily to capture portfolio values
  * and store them in the portfolio_history collection
  */
-// Commenting out the scheduled function for now
-/*
 export const capturePortfolioHistory = functions.pubsub
   .schedule('0 0 * * *') // Run at midnight every day (UTC)
   .timeZone('America/New_York') // Adjust to your preferred timezone
@@ -102,7 +82,6 @@ export const capturePortfolioHistory = functions.pubsub
       return null;
     }
   });
-*/
 
 /**
  * Function to manually trigger portfolio history capture
@@ -111,35 +90,24 @@ export const capturePortfolioHistory = functions.pubsub
 export const manualCapturePortfolioHistory = functions.https.onCall(async (data, context) => {
   // Ensure user is authenticated
   if (!context.auth) {
-    console.log('Authentication error: User not authenticated');
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
 
-  console.log('manualCapturePortfolioHistory called with data:', JSON.stringify(data));
-  console.log('User ID:', context.auth.uid);
-
   try {
     // Get user document to check permissions
-    console.log('Fetching user document for:', context.auth.uid);
     const userDoc = await admin.firestore().collection('users').doc(context.auth.uid).get();
     
     if (!userDoc.exists) {
-      console.log('User document not found for:', context.auth.uid);
       throw new functions.https.HttpsError('not-found', 'User not found');
     }
 
     const userData = userDoc.data()!;
-    console.log('User data:', JSON.stringify(userData));
     
     // Only allow admins or the specific portfolio owner to trigger this
     const isAdmin = userData.role === 'super_admin';
     const portfolioId = data?.portfolioId;
     
-    console.log('Is admin:', isAdmin);
-    console.log('Portfolio ID:', portfolioId);
-    
     if (!isAdmin && (!portfolioId || data.forceAll)) {
-      console.log('Permission denied: Not admin and trying to capture all portfolios');
       throw new functions.https.HttpsError(
         'permission-denied', 
         'Only admins can capture history for all portfolios'
@@ -148,28 +116,16 @@ export const manualCapturePortfolioHistory = functions.https.onCall(async (data,
 
     // If a specific portfolio ID is provided, only capture that one
     if (portfolioId && !data.forceAll) {
-      console.log('Fetching portfolio document for:', portfolioId);
       const portfolioDoc = await admin.firestore().collection('portfolios').doc(portfolioId).get();
       
       if (!portfolioDoc.exists) {
-        console.log('Portfolio not found:', portfolioId);
         throw new functions.https.HttpsError('not-found', 'Portfolio not found');
       }
       
       const portfolio = portfolioDoc.data()!;
-      console.log('Portfolio data:', JSON.stringify({
-        id: portfolioId,
-        userId: portfolio.userId,
-        totalValue: portfolio.totalValue,
-        balance: portfolio.balance,
-        holdingsCount: portfolio.holdings ? Object.keys(portfolio.holdings).length : 0
-      }));
       
       // Check if user has permission for this portfolio
       if (!isAdmin && portfolio.userId !== context.auth.uid) {
-        console.log('Permission denied: User does not own this portfolio');
-        console.log('Portfolio userId:', portfolio.userId);
-        console.log('Auth userId:', context.auth.uid);
         throw new functions.https.HttpsError(
           'permission-denied', 
           'You do not have permission to capture history for this portfolio'
@@ -184,7 +140,6 @@ export const manualCapturePortfolioHistory = functions.https.onCall(async (data,
       const holdings: Record<string, { quantity: number; value: number }> = {};
       
       if (portfolio.holdings && typeof portfolio.holdings === 'object') {
-        console.log('Processing portfolio holdings');
         Object.entries(portfolio.holdings).forEach(([ticker, holdingData]: [string, any]) => {
           if (holdingData && typeof holdingData.quantity === 'number') {
             const quantity = holdingData.quantity;
@@ -193,18 +148,12 @@ export const manualCapturePortfolioHistory = functions.https.onCall(async (data,
               quantity,
               value: quantity * price
             };
-            console.log(`Processed holding: ${ticker}, quantity: ${quantity}, price: ${price}`);
-          } else {
-            console.log(`Skipping invalid holding: ${ticker}`, holdingData);
           }
         });
-      } else {
-        console.log('No holdings found or holdings is not an object');
       }
       
       // Create a unique ID for the history entry using date and portfolio ID
       const historyId = `${portfolioId}_${dateString}`;
-      console.log('Creating history entry with ID:', historyId);
       
       // Create the history entry
       const historyEntry = {
@@ -218,9 +167,7 @@ export const manualCapturePortfolioHistory = functions.https.onCall(async (data,
       };
       
       // Save the history entry
-      console.log('Saving history entry to Firestore');
       await admin.firestore().collection('portfolio_history').doc(historyId).set(historyEntry, { merge: true });
-      console.log('History entry saved successfully');
       
       return {
         success: true,

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTransactions } from "@/hooks/useTransactions";
 import { format } from "date-fns";
 import { Timestamp } from "firebase/firestore";
+import { useEffect } from "react";
 
 const getDateFromTimestamp = (timestamp: string | Timestamp): Date => {
   if (timestamp instanceof Timestamp) {
@@ -15,6 +16,16 @@ const getDateFromTimestamp = (timestamp: string | Timestamp): Date => {
 export default function RecentTrades() {
   const { user } = useAuth();
   const { transactions, loading, error } = useTransactions(user?.id || "");
+
+  // Add debug logging
+  useEffect(() => {
+    console.log("RecentTrades component:", {
+      userId: user?.id,
+      transactionsCount: transactions?.length,
+      loading,
+      error,
+    });
+  }, [user?.id, transactions, loading, error]);
 
   if (!user?.id) {
     return (

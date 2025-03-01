@@ -18,6 +18,7 @@ import DocumentsList from "@/components/trading/DocumentsList";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import DepositForm from "@/components/DepositForm";
 import WithdrawalForm from "@/components/WithdrawalForm";
+import CapturePortfolioHistory from "@/components/trading/CapturePortfolioHistory";
 import { FaTimes } from "react-icons/fa";
 
 export default function DashboardPage() {
@@ -218,6 +219,18 @@ export default function DashboardPage() {
                       {transactionStatus.message}
                     </div>
                   )}
+
+                  {/* Add the CapturePortfolioHistory component */}
+                  <div className="pt-2 border-t border-gray-200">
+                    <h3 className="text-md font-medium text-gray-700 mb-2">
+                      Portfolio History
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-2">
+                      Capture your current portfolio value for historical
+                      tracking
+                    </p>
+                    <CapturePortfolioHistory portfolioId={portfolioData.id} />
+                  </div>
                 </div>
               </div>
 

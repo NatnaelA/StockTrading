@@ -4,6 +4,15 @@ import { useState, useEffect } from "react";
 import { tradingService } from "@/services/trading";
 import { UserDocument } from "@/types/trading";
 import { format } from "date-fns";
+import { Timestamp } from "firebase/firestore";
+
+// Helper function to handle Timestamp conversion
+const getDateFromTimestamp = (timestamp: any): Date => {
+  if (timestamp instanceof Timestamp) {
+    return timestamp.toDate();
+  }
+  return new Date(timestamp);
+};
 
 interface DocumentsListProps {
   userId: string;
@@ -17,9 +26,12 @@ export default function DocumentsList({ userId }: DocumentsListProps) {
   useEffect(() => {
     if (!userId) return;
 
+    console.log("DocumentsList: Loading documents for user:", userId);
+
     const loadDocuments = async () => {
       try {
         const docs = await tradingService.getUserDocuments(userId);
+        console.log("DocumentsList: Loaded documents:", docs);
         setDocuments(docs);
       } catch (err) {
         console.error("Error loading documents:", err);
@@ -77,7 +89,7 @@ export default function DocumentsList({ userId }: DocumentsListProps) {
                     <p className="text-sm text-gray-500">{doc.description}</p>
                   )}
                   <p className="text-xs text-gray-400 mt-1">
-                    {format(new Date(doc.createdAt), "MMM d, yyyy")}
+                    {format(getDateFromTimestamp(doc.createdAt), "MMM d, yyyy")}
                   </p>
                 </div>
                 <div className="text-sm text-gray-500">

@@ -77,6 +77,21 @@ npm run serve
 - Web Dashboard: [http://localhost:3000](http://localhost:3000)
 - Firebase Emulator: [http://localhost:4000](http://localhost:4000)
 
+## API Reference
+
+The Stock Trading Platform provides a comprehensive REST API for integrating with our services. The complete API documentation is available in the [API_REFERENCE.md](./API_REFERENCE.md) file.
+
+Key API features include:
+
+- Authentication and user management
+- Portfolio operations
+- Trading functionality
+- Transaction history
+- Notifications
+- Payment processing
+
+For any API-related questions, please contact our support team.
+
 ## Building for Production
 
 ### Mobile App

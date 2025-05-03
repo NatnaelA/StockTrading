@@ -1,21 +1,24 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useServerTransactions } from "@/hooks/useServerTransactions";
 import { format } from "date-fns";
 import { Timestamp } from "firebase/firestore";
 import { useEffect } from "react";
 
-const getDateFromTimestamp = (timestamp: string | Timestamp): Date => {
+const getDateFromTimestamp = (timestamp: string | Timestamp | Date): Date => {
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate();
+  }
+  if (timestamp instanceof Date) {
+    return timestamp;
   }
   return new Date(timestamp);
 };
 
 export default function RecentTrades() {
-  const { user } = useAuth();
-  const { transactions, loading, error } = useTransactions(user?.id || "");
+  const { user } = useSupabaseAuth();
+  const { transactions, loading, error } = useServerTransactions(user?.id);
 
   // Add debug logging
   useEffect(() => {
@@ -63,15 +66,15 @@ export default function RecentTrades() {
         </h2>
         <div className="p-4 text-red-700 bg-red-50 rounded-lg">
           <p>Unable to load recent trades</p>
-          <small className="text-red-600">Please try refreshing the page</small>
+          <small className="text-red-600">{error}</small>
         </div>
       </div>
     );
   }
 
   const sortedTransactions = [...transactions].sort((a, b) => {
-    const dateA = getDateFromTimestamp(a.createdAt);
-    const dateB = getDateFromTimestamp(b.createdAt);
+    const dateA = getDateFromTimestamp(a.date);
+    const dateB = getDateFromTimestamp(b.date);
     return dateB.getTime() - dateA.getTime();
   });
 
@@ -91,12 +94,12 @@ export default function RecentTrades() {
               !trade.type ||
               !trade.quantity ||
               !trade.price ||
-              !trade.createdAt
+              !trade.date
             ) {
               return null;
             }
 
-            const tradeDate = getDateFromTimestamp(trade.createdAt);
+            const tradeDate = getDateFromTimestamp(trade.date);
 
             return (
               <div

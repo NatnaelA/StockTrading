@@ -51,7 +51,7 @@ export default function PortfolioSummary({ portfolio }: PortfolioSummaryProps) {
               }`}
             >
               ({portfolio.dayChangePercentage >= 0 ? "+" : ""}
-              {portfolio.dayChangePercentage.toFixed(2)}%)
+              {(portfolio.dayChangePercentage ?? 0).toFixed(2)}%)
             </p>
           </div>
         </div>

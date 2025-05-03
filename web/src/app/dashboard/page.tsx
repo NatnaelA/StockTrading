@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/hooks/useAuth";
-import { usePortfolio } from "@/hooks/usePortfolio";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { useServerPortfolio } from "@/hooks/useServerPortfolio";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { TimeRange } from "@/types/trading";
-import { auth } from "@/lib/firebase";
+import UserProfile from "@/components/auth/UserProfile";
 import PortfolioSummary from "@/components/trading/PortfolioSummary";
 import PerformanceChart from "@/components/trading/PerformanceChart";
 import HoldingsList from "@/components/trading/HoldingsList";
@@ -21,47 +20,154 @@ import WithdrawalForm from "@/components/WithdrawalForm";
 import CapturePortfolioHistory from "@/components/trading/CapturePortfolioHistory";
 import { FaTimes } from "react-icons/fa";
 
+console.log("--- DashboardPage File Loaded ---"); // Keep this top-level log
+
 export default function DashboardPage() {
+  console.log("--- DashboardPage Component Rendering --- L1 ---"); // Add log
   const { t } = useTranslation();
   const router = useRouter();
-  const { user } = useAuth();
-  const { loading: authLoading } = useProtectedRoute();
+  const { user, loading: authLoading } = useSupabaseAuth();
+  const {
+    portfolio,
+    performanceData,
+    loading: portfolioLoading,
+    error: portfolioError,
+    selectedTimeRange,
+    updateTimeRange,
+    refetch,
+    profile,
+  } = useServerPortfolio(user?.id);
+
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [creatingPortfolio, setCreatingPortfolio] = useState(false);
+  const [creationAttempts, setCreationAttempts] = useState(0);
+  const [showManualCreateButton, setShowManualCreateButton] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const {
-    portfolio,
-    recentTrades,
-    performanceData,
-    loading: portfolioLoading,
-    error,
-    selectedTimeRange,
-    updateTimeRange,
-  } = usePortfolio(user?.id || "");
+  // Effect to redirect if authenticated user has NOT completed their profile
+  useEffect(() => {
+    console.log("[Dashboard Redirect Check]", {
+      authLoading,
+      userId: user?.id,
+      portfolioLoading,
+      hasPortfolio: !!portfolio,
+      profileLoading: portfolioLoading, // Profile is loaded when portfolio is loaded
+      profileCompleted: profile?.profile_completed,
+    });
 
-  const loading = authLoading || portfolioLoading;
+    // Redirect ONLY if user is loaded, data fetching is complete, AND profile is marked as incomplete
+    if (!authLoading && user && !portfolioLoading) {
+      // Check loading state
+      if (profile && profile.profile_completed === false) {
+        console.log(
+          "[DashboardPage] Profile not complete, redirecting to /complete-profile"
+        );
+        router.push("/complete-profile");
+      } else if (!profile) {
+        // This case might indicate an error fetching the profile itself
+        console.warn(
+          "[Dashboard Redirect Check] Profile data missing after loading."
+        );
+        // Maybe redirect to an error page or show an error message?
+        // For now, let's prevent redirect loop if profile is missing unexpectedly.
+      } else {
+        // Profile is loaded and complete (or portfolio exists - though profile check is better)
+        console.log(
+          "[Dashboard Redirect Check] Profile complete, NO redirect."
+        );
+      }
+    } else {
+      console.log(
+        "[Dashboard Redirect Check] Conditions not met (still loading or no user)."
+      );
+    }
+    // Depend on profile object as well
+  }, [user, authLoading, portfolio, portfolioLoading, router, profile]);
 
-  const handleSignOut = async () => {
+  // Manual portfolio creation function - kept in case it's needed for error recovery
+  // or if the API route returns a status indicating manual creation is needed.
+  const handleManualCreate = async () => {
+    // Reset attempt counter and hide button
+    setCreationAttempts(0);
+    setShowManualCreateButton(false);
+    setCreatingPortfolio(true);
+    setError(null); // Clear previous errors
+
     try {
-      await auth.signOut();
-      router.push("/");
+      console.log(
+        "Manually attempting to create portfolio for user:",
+        user?.id
+      );
+      // Call the portfolio creation API
+      const response = await fetch("/api/portfolios/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "My Portfolio", // Or allow user input?
+          currency: "USD",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Failed to create portfolio (${response.status}): ${
+            errorData.message || response.statusText
+          }`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Portfolio created manually:", data);
+
+      // Refresh the portfolio data
+      refetch();
+
+      setTransactionStatus({
+        type: "success",
+        message: "Portfolio created successfully!",
+      });
+      setTimeout(() => setTransactionStatus(null), 5000);
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Error manually creating portfolio:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create portfolio. Please try again."
+      );
+      // Optionally show the manual button again after a delay or failed attempt
+      setShowManualCreateButton(true);
+    } finally {
+      setCreatingPortfolio(false);
     }
   };
+
+  const loading = portfolioLoading || authLoading || creatingPortfolio;
 
   const handleTransactionSuccess = (type: "deposit" | "withdraw") => {
     setTransactionStatus({
       type: "success",
       message: `${type === "deposit" ? "Deposit" : "Withdrawal"} successful!`,
     });
-    setShowDepositModal(false);
-    setShowWithdrawModal(false);
-    setTimeout(() => setTransactionStatus(null), 5000);
+
+    // Close the modal
+    if (type === "deposit") setShowDepositModal(false);
+    else setShowWithdrawModal(false);
+
+    // Refresh portfolio data
+    refetch();
+
+    // Clear the message after 5 seconds
+    setTimeout(() => {
+      setTransactionStatus(null);
+    }, 5000);
   };
 
   const handleTransactionError = (error: string) => {
@@ -69,67 +175,50 @@ export default function DashboardPage() {
       type: "error",
       message: error,
     });
-    setTimeout(() => setTransactionStatus(null), 5000);
+
+    // Clear the message after 5 seconds
+    setTimeout(() => {
+      setTransactionStatus(null);
+    }, 5000);
   };
 
-  // Show loading state while authentication or portfolio data is being fetched
-  if (loading) {
+  console.log("--- DashboardPage Component Rendering --- L2 ---"); // Add log
+
+  // Handle the case where we are redirecting based on profile completion
+  if (
+    !authLoading &&
+    user &&
+    !portfolioLoading &&
+    profile &&
+    profile.profile_completed === false
+  ) {
+    console.log(
+      "--- DashboardPage Component Rendering --- Redirecting Block (Profile Incomplete) ---"
+    );
+    // Render minimal loading state while redirect happens
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-white shadow">
-          <div className="container mx-auto px-4 py-4">
-            <div className="h-8 w-48 bg-gray-200 animate-pulse rounded"></div>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <div className="mb-8 bg-white rounded-lg shadow-sm p-6">
-                <div className="space-y-4">
-                  <div className="h-8 w-1/3 bg-gray-200 animate-pulse rounded"></div>
-                  <div className="h-24 bg-gray-200 animate-pulse rounded"></div>
-                </div>
-              </div>
-              <div className="mb-8 bg-white rounded-lg shadow-sm p-6">
-                <div className="space-y-4">
-                  <div className="h-8 w-1/4 bg-gray-200 animate-pulse rounded"></div>
-                  <div className="h-48 bg-gray-200 animate-pulse rounded"></div>
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="space-y-4">
-                  <div className="h-8 w-1/2 bg-gray-200 animate-pulse rounded"></div>
-                  <div className="h-32 bg-gray-200 animate-pulse rounded"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="container mx-auto px-4 py-8 text-center">
+          <p>{t("redirecting.to.profile")}</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
-    console.error("Portfolio error:", error);
-    // Don't show error to user, just log it and continue with empty portfolio
+  if (loading) {
+    console.log("--- DashboardPage Component Rendering --- Loading Block ---");
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8 text-center">
+          <p>{t("loading")}</p>
+        </div>
+      </div>
+    );
   }
 
-  // Initialize empty portfolio if none exists
-  const portfolioData = portfolio || {
-    id: user?.id || "",
-    userId: user?.id || "",
-    name: "My Portfolio",
-    balance: 0,
-    currency: "USD",
-    holdings: [],
-    totalValue: 0,
-    dayChange: 0,
-    dayChangePercentage: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  console.log(
+    "--- DashboardPage Component Rendering --- L3 --- Ready to return JSX ---"
+  );
 
   return (
     <ProtectedRoute>
@@ -141,15 +230,7 @@ export default function DashboardPage() {
               {t("portfolio.summary")}
             </h1>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">
-                {user?.firstName} {user?.lastName}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="text-sm text-red-600 hover:text-red-800"
-              >
-                {t("auth.signOut")}
-              </button>
+              <UserProfile />
               <LanguageSwitcher />
             </div>
           </div>
@@ -157,147 +238,74 @@ export default function DashboardPage() {
 
         {/* Main Content */}
         <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Left Column */}
-            <div className="lg:col-span-2">
-              <div className="mb-8">
-                <PortfolioSummary portfolio={portfolioData} />
-              </div>
-              <div className="mb-8">
-                <PerformanceChart
-                  data={performanceData}
-                  selectedRange={selectedTimeRange}
-                  onRangeChange={updateTimeRange}
-                />
-              </div>
-              <div className="mb-8">
-                <HoldingsList holdings={portfolioData.holdings} />
-              </div>
-              <div>
-                <RecentTrades />
-              </div>
-            </div>
+          {/* Portfolio Summary and Charts */}
+          {portfolio && !loading && (
+            <>
+              <CapturePortfolioHistory portfolioId={portfolio.id} />
 
-            {/* Right Column */}
-            <div>
-              {/* Account Management Section */}
-              <div className="mb-8 bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Account Management
-                </h2>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Available Balance
-                    </p>
-                    <p className="text-2xl font-semibold text-gray-900">
-                      ${portfolioData.balance.toLocaleString()}
-                    </p>
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                {/* Left Column: Summary & Holdings */}
+                <div className="lg:col-span-2 space-y-8">
+                  <PortfolioSummary portfolio={portfolio} />
+                  <PerformanceChart
+                    data={performanceData}
+                    selectedRange={selectedTimeRange as TimeRange}
+                    onRangeChange={updateTimeRange}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <HoldingsList holdings={portfolio.holdings || []} />
+                    <RecentTrades />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setShowDepositModal(true)}
-                      className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Deposit
-                    </button>
-                    <button
-                      onClick={() => setShowWithdrawModal(true)}
-                      className="w-full py-2 px-4 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                    >
-                      Withdraw
-                    </button>
-                  </div>
-                  {transactionStatus && (
-                    <div
-                      className={`p-3 rounded-lg ${
-                        transactionStatus.type === "success"
-                          ? "bg-green-50 text-green-700 border border-green-200"
-                          : "bg-red-50 text-red-700 border border-red-200"
-                      }`}
-                    >
-                      {transactionStatus.message}
-                    </div>
-                  )}
+                  <DocumentsList userId={user?.id || ""} />
+                </div>
 
-                  {/* Add the CapturePortfolioHistory component */}
-                  <div className="pt-2 border-t border-gray-200">
-                    <h3 className="text-md font-medium text-gray-700 mb-2">
-                      Portfolio History
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-2">
-                      Capture your current portfolio value for historical
-                      tracking
-                    </p>
-                    <CapturePortfolioHistory portfolioId={portfolioData.id} />
-                  </div>
+                {/* Right Column: Trade Form */}
+                <div>
+                  <TradeForm />
                 </div>
               </div>
-
-              <div className="mb-8">
-                <TradeForm
-                  onSuccess={() => {
-                    // Portfolio will automatically update through the usePortfolio hook
-                  }}
-                  onError={(error) => {
-                    setTransactionStatus({
-                      type: "error",
-                      message: error,
-                    });
-                  }}
-                />
-              </div>
-              <div>
-                <DocumentsList userId={user?.id || ""} />
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Deposit Modal */}
-        {showDepositModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Deposit Funds
-                </h2>
-                <button
-                  onClick={() => setShowDepositModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <FaTimes />
-                </button>
-              </div>
+        {showDepositModal && portfolio && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+              <button
+                className="absolute top-4 right-4"
+                onClick={() => setShowDepositModal(false)}
+              >
+                <FaTimes />
+              </button>
+              <h2 className="text-xl font-bold mb-4">{t("deposit.title")}</h2>
               <DepositForm
-                portfolioId={portfolioData.id}
                 onSuccess={() => handleTransactionSuccess("deposit")}
                 onError={handleTransactionError}
+                portfolioId={portfolio.id}
               />
             </div>
           </div>
         )}
 
         {/* Withdraw Modal */}
-        {showWithdrawModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Withdraw Funds
-                </h2>
-                <button
-                  onClick={() => setShowWithdrawModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <FaTimes />
-                </button>
-              </div>
+        {showWithdrawModal && portfolio && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+              <button
+                className="absolute top-4 right-4"
+                onClick={() => setShowWithdrawModal(false)}
+              >
+                <FaTimes />
+              </button>
+              <h2 className="text-xl font-bold mb-4">
+                {t("withdrawal.title")}
+              </h2>
               <WithdrawalForm
-                portfolioId={portfolioData.id}
-                availableBalance={portfolioData.balance}
                 onSuccess={() => handleTransactionSuccess("withdraw")}
                 onError={handleTransactionError}
+                portfolioId={portfolio.id}
+                availableBalance={portfolio.balance}
               />
             </div>
           </div>

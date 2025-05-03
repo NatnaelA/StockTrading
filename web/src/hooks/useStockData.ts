@@ -1,20 +1,26 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+// Import Supabase client
+import { createClient } from '@/lib/supabase-client'; 
 
 interface StockQuote {
   symbol: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  high: number;
+  price: number; // Mapped from current_price
+  change: number; // Mapped from day_change
+  changePercent: number; // Mapped from day_change_percentage
+  // Using placeholders or default values for fields not in our table
+  high: number; 
   low: number;
   volume: number;
-  lastUpdated: string;
+  lastUpdated: string; // Mapped from last_updated
 }
 
-// Alpha Vantage free tier allows 5 API calls per minute, 500 per day
-const ALPHA_VANTAGE_API_KEY = process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
+// Remove Alpha Vantage API key usage
+// const ALPHA_VANTAGE_API_KEY = process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
+
+// Create Supabase client instance outside the hook for reuse
+const supabase = createClient();
 
 export function useStockData(symbol: string) {
   const [quote, setQuote] = useState<StockQuote | null>(null);
@@ -22,52 +28,57 @@ export function useStockData(symbol: string) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchQuote = async (symbol: string) => {
-    if (!symbol) return;
+    if (!symbol) {
+        setQuote(null); // Clear quote if symbol is empty
+        setError(null);
+        return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      // Alpha Vantage API call
-      const response = await fetch(
-        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
-      );
+      // Fetch from Supabase public.stocks table
+      console.log(`Fetching stock data for ${symbol} from Supabase.`);
+      
+      const { data: stockData, error: dbError } = await supabase
+        .from('stocks')
+        .select('symbol, name, current_price, day_change, day_change_percentage, last_updated')
+        .eq('symbol', symbol)
+        .single(); // Expect only one row for a given symbol
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch stock data');
+      if (dbError) {
+          if (dbError.code === 'PGRST116') { // Code for "Not found"
+              console.log(`Symbol ${symbol} not found in Supabase stocks table.`);
+              throw new Error(`Stock symbol "${symbol}" not found.`);
+          } else {
+              console.error('Supabase query error:', dbError);
+              throw new Error('Failed to fetch stock data from database.');
+          }
       }
 
-      const data = await response.json();
-
-      // Check if we hit the API rate limit
-      if (data.Note) {
-        throw new Error('API rate limit reached. Please try again in a minute.');
+      if (!stockData) {
+          console.log(`No data returned for symbol ${symbol} from Supabase.`);
+          throw new Error(`No data found for stock symbol "${symbol}".`);
       }
 
-      // Check if the symbol exists
-      if (data['Error Message']) {
-        throw new Error('Invalid symbol or no data available');
-      }
-
-      const globalQuote = data['Global Quote'];
-      if (!globalQuote) {
-        throw new Error('No data available for this symbol');
-      }
-
-      // Parse Alpha Vantage response
+      // Map Supabase data to StockQuote interface
       const stockQuote: StockQuote = {
-        symbol: globalQuote['01. symbol'],
-        price: parseFloat(globalQuote['05. price']),
-        change: parseFloat(globalQuote['09. change']),
-        changePercent: parseFloat(globalQuote['10. change percent'].replace('%', '')),
-        high: parseFloat(globalQuote['03. high']),
-        low: parseFloat(globalQuote['04. low']),
-        volume: parseInt(globalQuote['06. volume']),
-        lastUpdated: globalQuote['07. latest trading day'],
+        symbol: stockData.symbol,
+        price: stockData.current_price ?? 0, // Use current_price for price
+        change: stockData.day_change ?? 0,
+        changePercent: stockData.day_change_percentage ?? 0,
+        // Use placeholder values for missing fields
+        high: stockData.current_price ?? 0, // Placeholder: use current price
+        low: stockData.current_price ?? 0,  // Placeholder: use current price
+        volume: 0, // Placeholder: no volume data in our table
+        lastUpdated: stockData.last_updated ? new Date(stockData.last_updated).toISOString() : new Date().toISOString(), 
       };
 
+      console.log('Successfully fetched stock quote from Supabase:', stockQuote);
       setQuote(stockQuote);
     } catch (err) {
+      console.error('Error in fetchQuote (Supabase):', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch stock data');
       setQuote(null);
     } finally {
@@ -76,23 +87,21 @@ export function useStockData(symbol: string) {
   };
 
   useEffect(() => {
-    if (symbol) {
-      fetchQuote(symbol);
+    // Fetch data only when the symbol changes
+    fetchQuote(symbol);
 
-      // Alpha Vantage free tier is limited to 5 calls per minute
-      // So we'll refresh every 20 seconds (3 times per minute)
-      const interval = setInterval(() => {
-        fetchQuote(symbol);
-      }, 20000);
+    // Remove the interval logic
+    // const interval = setInterval(() => {
+    //   fetchQuote(symbol);
+    // }, 20000);
+    // return () => clearInterval(interval);
 
-      return () => clearInterval(interval);
-    }
-  }, [symbol]);
+  }, [symbol]); // Dependency array only includes symbol
 
   return {
     quote,
     loading,
     error,
-    refetch: () => fetchQuote(symbol),
+    refetch: () => fetchQuote(symbol), // Keep refetch function if needed
   };
 } 

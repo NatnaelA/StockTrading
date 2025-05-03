@@ -1,21 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import {
-  httpsCallable,
-  HttpsCallableResult,
-  getFunctions,
-  connectFunctionsEmulator,
-} from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 export default function CapturePortfolioHistory({
   portfolioId,
 }: {
   portfolioId: string;
 }) {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
@@ -52,27 +45,25 @@ export default function CapturePortfolioHistory({
       console.log("=== Capture Portfolio History Debug ===");
       console.log("Portfolio ID:", portfolioId);
       console.log("User ID:", user.id);
-      console.log("Functions instance:", functions);
-      console.log("Firebase config:", {
-        projectId: functions.app.options.projectId,
-        region: functions.region,
-      });
 
-      // Create the callable function
-      const captureHistory = httpsCallable(
-        functions,
-        "manualCapturePortfolioHistory"
+      // Use the server-side API endpoint instead of calling Firebase Function directly
+      const response = await fetch(
+        `/api/portfolios/${portfolioId}/history/capture`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Important for including cookies
+        }
       );
 
-      console.log("Calling Cloud Function with data:", { portfolioId });
+      const data = await response.json();
+      console.log("API response:", data);
 
-      // Call the function with the portfolio ID
-      const response = await captureHistory({ portfolioId });
-
-      console.log("Function response:", response);
-      console.log("Function response data:", response.data);
-
-      const data = response.data as any;
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to capture portfolio history");
+      }
 
       setResult({
         success: true,
@@ -82,41 +73,9 @@ export default function CapturePortfolioHistory({
     } catch (error: any) {
       console.error("Error capturing portfolio history:", error);
 
-      // Enhanced error logging
-      console.error("Error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        stack: error.stack,
-        name: error.name,
-        cause: error.cause,
-        httpErrorCode: error.httpErrorCode,
-        operationName: error.operationName,
-        serverErrorCode: error.serverErrorCode,
-      });
-
-      // Extract more detailed error information
+      // Extract error information
       let errorMessage = "Failed to capture portfolio history";
-      let errorDetails = "";
-
-      if (error.code) {
-        errorMessage += ` (${error.code})`;
-      }
-
-      if (error.message) {
-        errorDetails = error.message;
-      }
-
-      if (error.details) {
-        errorDetails += error.details ? ` - ${error.details}` : "";
-      }
-
-      // Check for Firebase-specific error properties
-      if (error.customData) {
-        console.error("Custom data:", error.customData);
-        errorDetails +=
-          "\nAdditional info: " + JSON.stringify(error.customData);
-      }
+      let errorDetails = error.message || "";
 
       setResult({
         success: false,

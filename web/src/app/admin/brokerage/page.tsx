@@ -50,7 +50,9 @@ export default function BrokerageManagement() {
 
   const fetchBrokerageFirms = async () => {
     try {
-      const response = await fetch("/api/admin/brokerage");
+      const response = await fetch("/api/admin/brokerage", {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch firms");
       const data = await response.json();
       setFirms(data.firms);
@@ -73,6 +75,7 @@ export default function BrokerageManagement() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to create firm");
@@ -94,6 +97,7 @@ export default function BrokerageManagement() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(inviteData),
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to invite broker");
@@ -120,6 +124,7 @@ export default function BrokerageManagement() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ role }),
+          credentials: "include",
         }
       );
 

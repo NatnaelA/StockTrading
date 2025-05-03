@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, updateDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -25,21 +23,28 @@ export default function CompleteProfilePage() {
     setError("");
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error("No authenticated user found");
-      }
-
-      await updateDoc(doc(db, "users", user.uid), {
-        ...formData,
-        profileCompleted: true,
-        updatedAt: new Date().toISOString(),
+      const response = await fetch("/api/profile/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to complete profile");
+      }
 
       router.push("/dashboard");
     } catch (err) {
-      console.error("Error updating profile:", err);
-      setError("Failed to update profile. Please try again.");
+      console.error("Error completing profile:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An unknown error occurred. Please try again."
+      );
     } finally {
       setLoading(false);
     }

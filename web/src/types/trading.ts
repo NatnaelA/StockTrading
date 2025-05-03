@@ -57,10 +57,9 @@ export interface StockTransaction {
   ticker: string;
   quantity: number;
   price: number;
-  type: 'buy' | 'sell';
-  status: 'pending' | 'completed' | 'failed';
-  createdAt: Timestamp | string;
-  updatedAt: Timestamp | string;
+  type: 'buy' | 'sell' | 'BUY' | 'SELL' | 'DEPOSIT' | 'WITHDRAW';
+  status: 'pending' | 'completed' | 'failed' | 'PENDING' | 'COMPLETED' | 'FAILED';
+  date: Date | string;
 }
 
 export interface UserPortfolio {

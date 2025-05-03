@@ -1,157 +1,308 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import { useStockData } from "@/hooks/useStockData";
-import { usePortfolio } from "@/hooks/usePortfolio";
-import { tradingService } from "@/services/trading";
+import { useServerPortfolio } from "@/hooks/useServerPortfolio";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 interface TradeFormProps {
   onSuccess?: () => void;
   onError?: (error: string) => void;
 }
 
+// Helper type guard to check if holdings are array-style
+function hasArrayHoldings(portfolio: any): boolean {
+  return Array.isArray(portfolio.holdings);
+}
+
+// Helper type guard to check if holdings are object-style
+function hasObjectHoldings(portfolio: any): boolean {
+  return (
+    !Array.isArray(portfolio.holdings) &&
+    typeof portfolio.holdings === "object" &&
+    portfolio.holdings !== null
+  );
+}
+
 export default function TradeForm({ onSuccess, onError }: TradeFormProps) {
-  const { user } = useAuth();
-  const { portfolio } = usePortfolio(user?.id || "");
+  // Use Supabase auth for consistency
+  const { user } = useSupabaseAuth();
   const [symbol, setSymbol] = useState("");
   const [quantity, setQuantity] = useState("");
   const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{
     totalCost: number;
     newBalance: number;
     canAfford: boolean;
   } | null>(null);
 
-  // Get real-time stock data
+  // Use server portfolio hook instead of direct Firebase access
+  const {
+    portfolio,
+    loading: portfolioLoading,
+    error: portfolioError,
+    refetch: refetchPortfolio,
+  } = useServerPortfolio(user?.id || "");
+
   const {
     quote,
     loading: quoteLoading,
     error: quoteError,
   } = useStockData(symbol);
 
-  // Calculate preview whenever relevant values change
-  useEffect(() => {
-    if (quote && quantity && portfolio) {
-      const quantityNum = parseInt(quantity);
-      const totalCost = quote.price * quantityNum;
-      const newBalance =
-        orderType === "buy"
-          ? portfolio.balance - totalCost
-          : portfolio.balance + totalCost;
+  // Find holding and check quantity based on portfolio type
+  const findHolding = (
+    portfolio: any,
+    symbol: string
+  ): { hasHolding: boolean; hasEnoughShares: boolean; quantity: number } => {
+    if (hasArrayHoldings(portfolio)) {
+      const holding = portfolio.holdings.find((h: any) => h.symbol === symbol);
+      const quantity = holding?.quantity || 0;
+      return {
+        hasHolding: !!holding,
+        hasEnoughShares: holding && quantity >= Number(quantity),
+        quantity,
+      };
+    } else if (hasObjectHoldings(portfolio)) {
+      const holding = portfolio.holdings[symbol];
+      const quantity = holding?.quantity || 0;
+      return {
+        hasHolding: !!holding,
+        hasEnoughShares: holding && quantity >= Number(quantity),
+        quantity,
+      };
+    }
+    return { hasHolding: false, hasEnoughShares: false, quantity: 0 };
+  };
 
-      setPreview({
-        totalCost,
-        newBalance,
-        canAfford: orderType === "sell" || newBalance >= 0,
+  // Function to create a portfolio if it doesn't exist
+  const createPortfolio = async () => {
+    if (!user?.id) return null;
+
+    setError(null);
+
+    try {
+      const response = await fetch("/api/portfolios/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "My Portfolio",
+          initialBalance: 10000, // Starting with $10,000
+        }),
+        credentials: "include",
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || errorData.message || "Failed to create portfolio"
+        );
+      }
+
+      const data = await response.json();
+
+      // Refetch the portfolio after creation
+      await refetchPortfolio();
+
+      return data.portfolio;
+    } catch (err: any) {
+      console.error("Error creating portfolio:", err);
+      setError(err.message || "Failed to create portfolio");
+      return null;
+    }
+  };
+
+  // Update preview when relevant data changes
+  useEffect(() => {
+    if (
+      !portfolioLoading &&
+      portfolio &&
+      quote &&
+      quantity &&
+      !isNaN(Number(quantity))
+    ) {
+      const numQuantity = Number(quantity);
+      const totalCost = numQuantity * quote.price;
+
+      // Calculate preview based on order type
+      if (orderType === "buy") {
+        setPreview({
+          totalCost,
+          newBalance: (portfolio.balance || 0) - totalCost,
+          canAfford: (portfolio.balance || 0) >= totalCost,
+        });
+      } else {
+        // Check if user owns the stock and has enough shares
+        const { hasEnoughShares } = findHolding(portfolio, symbol);
+
+        setPreview({
+          totalCost,
+          newBalance: (portfolio.balance || 0) + totalCost,
+          canAfford: hasEnoughShares,
+        });
+      }
     } else {
       setPreview(null);
     }
-  }, [quote, quantity, orderType, portfolio]);
+  }, [portfolio, portfolioLoading, quote, quantity, orderType, symbol]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!user) {
       setError("You must be logged in to trade");
+      if (onError) onError("You must be logged in to trade");
+      return;
+    }
+
+    // If no portfolio exists, create one automatically without UI indication
+    let currentPortfolio = portfolio;
+    if (!currentPortfolio && !portfolioLoading) {
+      currentPortfolio = await createPortfolio();
+
+      if (!currentPortfolio) {
+        setError("Failed to create a portfolio. Please try again later.");
+        if (onError) onError("Failed to create a portfolio");
+        return;
+      }
+    }
+
+    // If still no portfolio after creation attempt
+    if (!currentPortfolio) {
+      setError("Portfolio data is not available. Please refresh the page.");
+      if (onError) onError("Portfolio data is not available");
       return;
     }
 
     if (!quote) {
-      setError("Please enter a valid stock symbol");
+      setError("Stock price data is not available");
+      if (onError) onError("Stock price data is not available");
       return;
     }
 
-    const quantityNum = parseInt(quantity);
-    if (!quantity || isNaN(quantityNum) || quantityNum <= 0) {
-      setError("Please enter a valid quantity (must be greater than 0)");
+    if (
+      !symbol ||
+      !quantity ||
+      isNaN(Number(quantity)) ||
+      Number(quantity) <= 0
+    ) {
+      setError("Please enter a valid symbol and quantity");
+      if (onError) onError("Please enter a valid symbol and quantity");
       return;
     }
 
-    if (orderType === "buy" && preview && !preview.canAfford) {
-      setError(
-        `Insufficient balance for this purchase. Required: $${preview.totalCost.toFixed(
-          2
-        )}`
-      );
+    // Check if the user can afford the purchase or has enough shares to sell
+    if (
+      orderType === "buy" &&
+      (currentPortfolio.balance || 0) < Number(quantity) * quote.price
+    ) {
+      setError("Insufficient balance to complete this purchase");
+      if (onError) onError("Insufficient balance to complete this purchase");
       return;
     }
 
     if (orderType === "sell") {
-      const currentHolding = portfolio?.holdings.find(
-        (h) => h.symbol === symbol
+      const { hasEnoughShares, quantity: availableQuantity } = findHolding(
+        currentPortfolio,
+        symbol
       );
-      if (!currentHolding || currentHolding.quantity < quantityNum) {
+
+      if (!hasEnoughShares) {
         setError(
-          `Insufficient shares. You only have ${
-            currentHolding?.quantity || 0
-          } shares of ${symbol}`
+          `You don't own enough shares of ${symbol}. Available: ${availableQuantity}`
         );
+        if (onError)
+          onError(
+            `You don't own enough shares of ${symbol}. Available: ${availableQuantity}`
+          );
         return;
       }
     }
 
     setLoading(true);
-    setError("");
+    setError(null);
 
     try {
-      // Create and complete the transaction in one step
-      await tradingService.createTransaction(
-        user.id,
-        symbol.toUpperCase(),
-        quantityNum,
-        quote.price,
-        orderType
-      );
-
-      // Generate and store transaction confirmation document
-      await tradingService.storeDocument(user.id, {
-        type: "transaction_confirmation",
-        title: `${orderType.toUpperCase()} ${quantityNum} ${symbol.toUpperCase()}`,
-        description: `${orderType.toUpperCase()} ${quantityNum} shares of ${symbol.toUpperCase()} at $${quote.price.toFixed(
+      console.log("Submitting trade request:", {
+        portfolioId: currentPortfolio.id,
+        symbol,
+        quantity: Number(quantity),
+        orderType: "market", // Using market order type
+        side: orderType,
+        price: quote.price,
+        notes: `${orderType.toUpperCase()} ${quantity} shares of ${symbol} at $${quote.price.toFixed(
           2
         )}`,
-        fileUrl: "#", // You would generate and upload a PDF here
-        fileType: "pdf",
-        periodStart: new Date().toISOString(),
-        periodEnd: new Date().toISOString(),
       });
 
-      // Reset form
+      // Use fetch API to submit trade to server endpoint
+      const response = await fetch("/api/trades/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          portfolioId: currentPortfolio.id,
+          symbol,
+          quantity: Number(quantity),
+          orderType: "market", // Using market order type
+          side: orderType,
+          price: quote.price,
+          notes: `${orderType.toUpperCase()} ${quantity} shares of ${symbol} at $${quote.price.toFixed(
+            2
+          )}`,
+        }),
+        credentials: "include", // Important for sending cookies
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error ||
+            errorData.message ||
+            "Failed to submit trade request"
+        );
+      }
+
+      const result = await response.json();
+      console.log("Trade response:", result);
+
+      // Clear form
       setSymbol("");
       setQuantity("");
-      setOrderType("buy");
       setPreview(null);
 
-      onSuccess?.();
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to process trade";
-      setError(errorMessage);
-      onError?.(errorMessage);
+      // Refetch portfolio to get updated data
+      await refetchPortfolio();
+
+      // Handle success
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      console.error("Trade error:", err);
+      setError(err.message || "Failed to process trade");
+      if (onError) onError(err.message || "Failed to process trade");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Place Trade</h2>
+    <div className="bg-white shadow rounded-lg p-6">
+      <h2 className="text-xl font-semibold mb-4">Place a Trade</h2>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 border border-red-200">
+        <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-md">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label
-            htmlFor="symbol"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label className="block text-sm font-medium text-gray-700">
             Stock Symbol
           </label>
           <input
@@ -160,39 +311,25 @@ export default function TradeForm({ onSuccess, onError }: TradeFormProps) {
             value={symbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-            placeholder="e.g., AAPL"
             required
+            placeholder="e.g. AAPL"
           />
+          {quote && !quoteLoading && (
+            <div className="mt-2 text-sm">
+              <span className="font-medium">Current Price:</span> $
+              {quote.price.toFixed(2)}
+            </div>
+          )}
+          {quoteLoading && (
+            <div className="mt-2 text-sm text-gray-500">Loading price...</div>
+          )}
+          {quoteError && (
+            <div className="mt-2 text-sm text-red-600">{quoteError}</div>
+          )}
         </div>
 
-        {quote && !quoteLoading && (
-          <div className="p-3 rounded-lg bg-gray-50">
-            <div className="text-sm text-gray-600">Current Price</div>
-            <div className="text-lg font-semibold text-gray-900">
-              ${quote.price.toFixed(2)}
-              <span
-                className={`ml-2 text-sm ${
-                  quote.change >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {quote.change >= 0 ? "+" : ""}
-                {quote.changePercent.toFixed(2)}%
-              </span>
-            </div>
-          </div>
-        )}
-
-        {quoteError && (
-          <div className="p-3 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200 text-sm">
-            {quoteError}
-          </div>
-        )}
-
         <div>
-          <label
-            htmlFor="quantity"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label className="block text-sm font-medium text-gray-700">
             Quantity
           </label>
           <input
@@ -268,11 +405,19 @@ export default function TradeForm({ onSuccess, onError }: TradeFormProps) {
         <button
           type="submit"
           disabled={
-            loading || quoteLoading || !quote || (preview && !preview.canAfford)
+            loading ||
+            quoteLoading ||
+            !quote ||
+            (preview && !preview.canAfford) ||
+            portfolioLoading
           }
           className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
         >
-          {loading ? "Processing..." : `Place ${orderType.toUpperCase()} Order`}
+          {loading
+            ? "Processing..."
+            : portfolioLoading
+            ? "Loading portfolio..."
+            : `Place ${orderType.toUpperCase()} Order`}
         </button>
       </form>
     </div>

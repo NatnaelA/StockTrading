@@ -53,7 +53,9 @@ export default function TradeRequestList({
       if (portfolioId) queryParams.append("portfolioId", portfolioId);
       if (firmId) queryParams.append("firmId", firmId);
 
-      const response = await fetch(`/api/trades?${queryParams}`);
+      const response = await fetch(`/api/trades?${queryParams}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch trade requests");
 
       const data = await response.json();
@@ -86,6 +88,7 @@ export default function TradeRequestList({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ approved, notes }),
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to process approval");

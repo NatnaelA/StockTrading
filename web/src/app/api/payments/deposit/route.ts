@@ -1,45 +1,28 @@
 import { NextResponse } from 'next/server';
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
+// @ts-ignore
 import Stripe from 'stripe';
-
-// Initialize Firebase
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2024-12-18.acacia' as any,
 });
 
 export async function POST(request: Request) {
   try {
-    const user = auth.currentUser;
-    if (!user) {
+    // Create a Supabase client with cookie-based auth
+    const supabase = createServerSupabaseClient();
+    
+    // Get the current authenticated user
+    const { data: authData } = await supabase.auth.getSession();
+    if (!authData.session) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-
+    
+    const userId = authData.session.user.id;
     const data = await request.json();
     const { amount, portfolioId, currency = 'usd' } = data;
 
@@ -51,37 +34,60 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get portfolio details
-    const portfolioDoc = await getDoc(doc(db, 'portfolios', portfolioId));
-    if (!portfolioDoc.exists()) {
+    // Fetch the user's primary portfolio (assuming one for now)
+    // If multiple portfolios are allowed, the client should specify which one.
+    const { data: userPortfolio, error: portfolioError } = await supabase
+      .from('portfolios')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle(); // Use maybeSingle if user might not have a portfolio yet
+
+    if (portfolioError) {
+      console.error('[API /payments/deposit] Error fetching portfolio:', portfolioError);
       return NextResponse.json(
-        { error: 'Portfolio not found' },
-        { status: 404 }
+        { error: 'Failed to fetch portfolio' },
+        { status: 500 }
       );
     }
 
-    const portfolioData = portfolioDoc.data();
-    if (portfolioData.ownerId !== user.uid) {
+    if (!userPortfolio) {
+      console.error('[API /payments/deposit] Portfolio not found for user:', userId);
+      // A portfolio MUST exist before depositing.
+      // This should have been created after profile completion.
       return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
+        { error: 'Portfolio not found. Please complete your profile or contact support.' },
+        { status: 404 } // Not Found or Bad Request (400)
       );
     }
+
+    const actualPortfolioId = userPortfolio.id;
+    console.log(`[API /payments/deposit] Using portfolio ID: ${actualPortfolioId} for user: ${userId}`);
 
     // Create transaction record
-    const transactionRef = await addDoc(collection(db, 'transactions'), {
-      type: 'deposit',
-      amount,
-      currency,
-      status: 'pending',
-      portfolioId,
-      userId: user.uid,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    const { data: transaction, error: transactionError } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        portfolio_id: actualPortfolioId,
+        type: 'DEPOSIT',
+        total_amount: amount,
+        status: 'PENDING',
+        date: new Date().toISOString(),
+        notes: 'Stripe payment processing'
+      })
+      .select()
+      .single();
+      
+    if (transactionError) {
+      console.error('Error creating transaction:', transactionError);
+      return NextResponse.json(
+        { error: 'Failed to create transaction record' },
+        { status: 500 }
+      );
+    }
 
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
@@ -89,7 +95,7 @@ export async function POST(request: Request) {
             currency,
             product_data: {
               name: 'Portfolio Deposit',
-              description: `Deposit to portfolio ${portfolioId}`,
+              description: `Deposit to portfolio ${actualPortfolioId}`,
             },
             unit_amount: Math.round(amount * 100), // Convert to cents
           },
@@ -97,18 +103,20 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/portfolio/${portfolioId}/deposit?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/portfolio/${portfolioId}/deposit?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/portfolio/${actualPortfolioId}/deposit?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/portfolio/${actualPortfolioId}/deposit?canceled=true`,
       metadata: {
-        transactionId: transactionRef.id,
-        portfolioId,
-        userId: user.uid,
+        transactionId: transaction.id,
+        portfolioId: actualPortfolioId,
+        userId,
       },
     });
 
     return NextResponse.json({
-      sessionId: session.id,
-      transactionId: transactionRef.id,
+      sessionId: checkoutSession.id,
+      transactionId: transaction.id,
+      portfolioId: actualPortfolioId, // Return the actual portfolio ID used (might be new)
+      portfolioCreated: userPortfolio !== undefined && portfolioId !== actualPortfolioId, // Indicate if a new portfolio was created
     });
   } catch (error) {
     console.error('Error processing deposit:', error);

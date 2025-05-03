@@ -19,11 +19,17 @@ export default function WithdrawPage() {
     if (!portfolioId) return;
 
     // Fetch portfolio balance
-    fetch(`/api/portfolios/${portfolioId}/balance`)
-      .then((res) => res.json())
+    fetch(`/api/portfolios/${portfolioId}/balance`, {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok)
+          throw new Error("Failed to fetch balance: " + res.statusText);
+        return res.json();
+      })
       .then((data) => {
         if (data.error) {
-          throw new Error(data.error);
+          throw new Error(data.message || data.error);
         }
         setAvailableBalance(data.balance);
       })

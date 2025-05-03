@@ -54,7 +54,9 @@ export default function TradeDetailsPage({
 
   const fetchTradeDetails = async () => {
     try {
-      const response = await fetch(`/api/trades/${params.tradeId}`);
+      const response = await fetch(`/api/trades/${params.tradeId}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch trade details");
 
       const data = await response.json();
@@ -83,6 +85,7 @@ export default function TradeDetailsPage({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ approved, notes }),
+        credentials: "include",
       });
 
       if (!response.ok) {

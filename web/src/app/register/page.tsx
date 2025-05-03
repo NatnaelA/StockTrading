@@ -6,6 +6,8 @@ import PageHeader from "@/components/PageHeader";
 import { FaUser, FaIdCard, FaPhone, FaCheck } from "react-icons/fa";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import GoogleSignIn from "@/components/auth/GoogleSignIn";
 
 type RegistrationStep = "account" | "personal" | "kyc" | "verification";
 
@@ -62,6 +64,9 @@ export default function Register() {
     selfieImage: null,
   });
   const { t } = useTranslation();
+  const { signUpWithEmail } = useSupabaseAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -79,13 +84,15 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     try {
       switch (currentStep) {
         case "account":
           // Validate passwords match
           if (formData.password !== formData.confirmPassword) {
-            throw new Error("Passwords do not match");
+            setError("Passwords do not match");
+            return;
           }
           setCurrentStep("personal");
           break;
@@ -97,7 +104,8 @@ export default function Register() {
             !formData.lastName ||
             !formData.phoneNumber
           ) {
-            throw new Error("Please fill in all required fields");
+            setError("Please fill in all required fields");
+            return;
           }
           setCurrentStep("kyc");
           break;
@@ -105,7 +113,8 @@ export default function Register() {
         case "kyc":
           // Validate document uploads
           if (!formData.idFrontImage || !formData.selfieImage) {
-            throw new Error("Please upload all required documents");
+            setError("Please upload all required documents");
+            return;
           }
 
           // Create form data for file upload
@@ -123,14 +132,29 @@ export default function Register() {
           });
 
           if (!response.ok) {
-            throw new Error("Failed to submit KYC documents");
+            const errorData = await response.json();
+            throw new Error(
+              errorData.error || "Failed to submit KYC documents"
+            );
           }
 
           setCurrentStep("verification");
           break;
 
         case "verification":
-          // Final step - create user account
+          setIsSubmitting(true);
+
+          // First try to sign up with Supabase Auth
+          const authResult = await signUpWithEmail(
+            formData.email,
+            formData.password
+          );
+
+          if (authResult.error) {
+            throw new Error(authResult.error.message);
+          }
+
+          // Now create the extended user profile
           const createAccountResponse = await fetch("/api/auth/register", {
             method: "POST",
             headers: {
@@ -140,17 +164,30 @@ export default function Register() {
           });
 
           if (!createAccountResponse.ok) {
-            throw new Error("Failed to create account");
+            const errorData = await createAccountResponse.json();
+            throw new Error(errorData.error || "Failed to create account");
           }
 
           // Redirect to dashboard or verification pending page
           router.push("/verification-pending");
           break;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
-      // Handle error (show error message to user)
+      setError(error.message || "An error occurred during registration");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleGoogleSignUpSuccess = () => {
+    // The OAuth flow will be handled by the component and auth hooks
+    // Redirect to the verification page or another appropriate page
+    router.push("/verification-pending");
+  };
+
+  const handleGoogleSignUpError = (error: Error) => {
+    setError(error.message || "An error occurred during Google sign up");
   };
 
   return (
@@ -210,6 +247,12 @@ export default function Register() {
 
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+              {error}
+            </div>
+          )}
+
           {currentStep === "account" && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">
@@ -267,6 +310,26 @@ export default function Register() {
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
                     required
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">
+                      Or sign up with
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <GoogleSignIn
+                    buttonType="signup"
+                    onSuccess={handleGoogleSignUpSuccess}
+                    onError={handleGoogleSignUpError}
                   />
                 </div>
               </div>
@@ -481,40 +544,48 @@ export default function Register() {
             </div>
           )}
 
-          <div className="flex justify-between">
+          <div className="flex justify-between mt-8">
             {currentStep !== "account" && (
               <button
                 type="button"
-                onClick={() => {
-                  setCurrentStep(
-                    currentStep === "verification"
+                onClick={() =>
+                  setCurrentStep((prev) =>
+                    prev === "verification"
                       ? "kyc"
-                      : currentStep === "kyc"
+                      : prev === "kyc"
                       ? "personal"
                       : "account"
-                  );
-                }}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  )
+                }
+                className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
               >
                 Back
               </button>
             )}
             <button
               type="submit"
-              className="w-full rounded-md bg-teal-500 px-4 py-2 text-sm font-medium text-white hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+              disabled={isSubmitting}
+              className={`px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 ${
+                isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
-              {t("auth.register")}
+              {isSubmitting
+                ? "Processing..."
+                : currentStep === "verification"
+                ? t("auth.register")
+                : "Continue"}
             </button>
           </div>
-          <div className="text-center">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-teal-500 hover:text-teal-600"
-            >
-              {t("auth.haveAccount")}
-            </Link>
-          </div>
         </form>
+
+        <div className="mt-8 text-center">
+          <p className="text-gray-600">
+            Already have an account?{" "}
+            <Link href="/login" className="text-teal-600 hover:underline">
+              Sign In
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

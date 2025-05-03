@@ -1,35 +1,9 @@
 import { NextResponse } from 'next/server';
-import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-} from 'firebase/auth';
-import {
-  getFirestore,
-  collection,
-  doc,
-  setDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-
-// Initialize Firebase (you'll need to add your config)
-const firebaseConfig = {
-  // Add your Firebase config here
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+import { createServiceSupabaseClient } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
+    const supabase = createServiceSupabaseClient();
     const data = await request.json();
     const {
       email,
@@ -45,61 +19,77 @@ export async function POST(request: Request) {
       postalCode,
     } = data;
 
-    // 1. Create user account
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
+    // 1. Create user account in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
-      password
-    );
-    const user = userCredential.user;
-
-    // 2. Send email verification
-    await sendEmailVerification(user);
-
-    // 3. Create user profile in Firestore
-    await setDoc(doc(db, 'users', user.uid), {
-      firstName,
-      lastName,
-      email,
-      phoneNumber,
-      accountType,
-      dateOfBirth,
-      address,
-      city,
-      country,
-      postalCode,
-      role: accountType === 'broker' ? 'broker-pending' : 'individual',
-      kycStatus: 'pending',
-      emailVerified: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      password,
+      email_confirm: true, // Auto-confirm the email
     });
 
-    // 4. Create empty portfolio
-    await setDoc(doc(db, 'portfolios', user.uid), {
-      userId: user.uid,
-      balance: 0,
-      positions: [],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    if (authError) {
+      throw authError;
+    }
 
+    const user = authData.user;
+
+    if (!user) {
+      throw new Error('Failed to create user');
+    }
+
+    // 2. Create user profile in Supabase
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone_number: phoneNumber,
+        account_type: accountType,
+        date_of_birth: dateOfBirth,
+        address: address,
+        city: city,
+        country: country,
+        postal_code: postalCode,
+        role: accountType === 'broker' ? 'broker-pending' : 'individual',
+        kyc_status: 'pending',
+        email_verified: true, // Since we auto-confirmed the email
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      // If profile creation fails, attempt to delete the user
+      await supabase.auth.admin.deleteUser(user.id);
+      throw profileError;
+    }
+
+    // Registration successful, user and profile created.
+    // The user will be redirected to /complete-profile on next login/auth check.
     return NextResponse.json({
       success: true,
-      message: 'Registration successful',
-      userId: user.uid,
+      message: 'Registration successful. Please complete your profile.',
+      userId: user.id,
     });
   } catch (error: any) {
     console.error('Registration error:', error);
 
     let errorMessage = 'Failed to create account';
-    if (error.code === 'auth/email-already-in-use') {
+    let statusCode = 400;
+
+    // Handle Supabase-specific errors
+    if (error.code === 'USER_ALREADY_EXISTS' || error.message?.includes('already exists')) {
       errorMessage = 'Email is already registered';
+    } else if (error.code === 'INVALID_PASSWORD') {
+      errorMessage = 'Password must be at least 6 characters';
+    } else if (error.status === 429) {
+      errorMessage = 'Too many requests, please try again later';
+      statusCode = 429;
     }
 
     return NextResponse.json(
       { error: errorMessage },
-      { status: 400 }
+      { status: statusCode }
     );
   }
 } 
